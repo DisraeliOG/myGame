@@ -5,7 +5,7 @@
 #include <iostream>
 
 Player::Player() {
-    if (!playerTexture.loadFromFile("D:\\myGame\\assets\\player.png")) {
+    if (!playerTexture.loadFromFile("assets/player.png")) {
         std::cout << "Error loading player texture" << std::endl;
     }
     playerSprite.setTexture(playerTexture);
@@ -95,4 +95,14 @@ const std::vector<Bullet>& Player::getBullets() const {
 
 std::vector<Bullet>& Player::getBullets() {
     return bullets;
+}
+
+void Player::addExperience(int amount) {
+    experience += amount;
+    while (experience >= expToNextLevel) {
+        experience -= expToNextLevel;
+        level++;
+        expToNextLevel = static_cast<int>(expToNextLevel * 1.5f); // На след лвл нужно больше опыта
+        std::cout << "Level up! Now level " << level << std::endl;
+    }
 }

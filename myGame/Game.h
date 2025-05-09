@@ -6,6 +6,8 @@
 #include "Player.h"
 #include <SFML/Graphics.hpp>
 #include "EnvironmentManager.h"
+#include "HUD.h"
+#include "ExperienceOrb.h"
 
 class Game {
 private:
@@ -27,6 +29,11 @@ private:
     float timeBetweenWaves = 5.f;
     sf::Clock waveClock;
 
+    HUD hud;
+
+    std::vector<ExperienceOrb> experienceOrbs;
+
+    float deltaTime;
 
     void processEvents();
     void update();

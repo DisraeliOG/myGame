@@ -10,7 +10,7 @@ class Enemy {
 private:
     static sf::Texture enemyTexture;
     sf::Sprite enemySprite;
-    float speed;
+    float speed = 1;
     sf::Vector2f direction;
     sf::Clock movementClock;
     float changeDirection;

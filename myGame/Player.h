@@ -12,6 +12,9 @@ private:
     std::vector<Bullet> bullets;
     sf::Clock shootClock;
     int health = 100;
+    int experience = 0;
+    int level = 1;
+    int expToNextLevel = 100;
     float speed;
     float shootDelay = 0.8f;
     bool dead = false;
@@ -30,6 +33,12 @@ public:
     int getHealth() const { return health; }
     bool isDead() const { return dead; }
     sf::FloatRect getGlobalBounds() const;
+
+    // Опыт
+    void addExperience(int amount);
+    int getExperience() const { return experience; }
+    int getExpToNextLevel() const { return expToNextLevel; }
+    int getLevel() const { return level; }
 };
 
 #endif //PLAYER_H

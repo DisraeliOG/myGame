@@ -20,6 +20,11 @@ add_executable(myGame Game.cpp
         EnvironmentObjects.h
         EnvironmentObjects.cpp
         EnvironmentManager.h
-        EnvironmentManager.cpp)
+        EnvironmentManager.cpp
+        HUD.cpp
+        HUD.h
+        ExperienceOrb.cpp
+        ExperienceOrb.h
+)
 
 target_link_libraries(myGame sfml-graphics sfml-window sfml-system)

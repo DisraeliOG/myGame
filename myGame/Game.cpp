@@ -5,10 +5,11 @@
 #include <ctime>
 #include <iostream>
 #include <cmath>
+#include <set>
 
 Game::Game()
-    : window(sf::VideoMode(1280, 720), "My Game"),
-      environment(window.getSize())
+        : window(sf::VideoMode(1280, 720), "My Game"),
+          environment(window.getSize())
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
@@ -19,7 +20,7 @@ Game::Game()
     camera.setSize(window.getSize().x, window.getSize().y);
     camera.setCenter(window.getSize().x / 2.f, window.getSize().y / 2.f);
 
-    if (!backgroundTexture.loadFromFile("D:\\myGame\\assets\\grass.png")) {
+    if (!backgroundTexture.loadFromFile("assets/grass.png")) {
         std::cout << "Error loading background texture" << std::endl;
     }
     backgroundSprite.setTexture(backgroundTexture);
@@ -52,6 +53,7 @@ void Game::update() {
     player.update(enemies, deltaTime);
     environment.update(player.getPosition());
 
+
     if (waveClock.getElapsedTime().asSeconds() >= timeBetweenWaves) {
         spawnEnemies();
         waveClock.restart();
@@ -60,6 +62,33 @@ void Game::update() {
     for (auto& enemy : enemies) {
         enemy.update(deltaTime, player.getPosition(), player, enemies);
     }
+    for (auto& enemy : enemies) {
+        if (enemy.isAlive()) {
+            enemy.update(deltaTime, player.getPosition(), player, enemies);
+        } else {
+            // Drop XP if enemy just died
+            static std::set<const Enemy*> alreadyDropped;
+            if (alreadyDropped.find(&enemy) == alreadyDropped.end()) {
+                experienceOrbs.emplace_back(enemy.getPosition());
+                alreadyDropped.insert(&enemy);
+            }
+        }
+    }
+
+    for (auto& orb : experienceOrbs) {
+        orb.update(deltaTime, player.getPosition());
+        if (orb.isCollected()) {
+            player.addExperience(orb.getXP());
+        }
+    }
+    experienceOrbs.erase(
+            std::remove_if(experienceOrbs.begin(), experienceOrbs.end(),
+                           [](const ExperienceOrb& orb) {
+                               return orb.isCollected() || orb.isExpired();
+                           }),
+            experienceOrbs.end());
+
+    hud.update(player, window.getSize());
 
     camera.setCenter(player.getPosition());
     window.setView(camera);
@@ -115,6 +144,7 @@ void Game::render() {
     }
     environment.draw(window);
 
+
     player.draw(window);
     for (const auto& bullet : player.getBullets()) {
         bullet.draw(window);
@@ -127,7 +157,7 @@ void Game::render() {
     }
     if (player.isDead()) {
         static sf::Font font;
-        static bool loaded = font.loadFromFile("D:\\myGame\\fonts\\DmitrievaSP.otf");
+        static bool loaded = font.loadFromFile("fonts/DmitrievaSP.otf");
 
         if (loaded) {
             sf::Text deathMessage("YOU DIED", font, 150);
@@ -142,6 +172,11 @@ void Game::render() {
         }
     }
 
+    for (const auto& orb : experienceOrbs) {
+        orb.draw(window);
+    }
+
+    hud.draw(window);
 
     window.display();
 }

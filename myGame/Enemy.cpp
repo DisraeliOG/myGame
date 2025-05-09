@@ -7,7 +7,7 @@ sf::Texture Enemy::enemyTexture;
 
 void Enemy::loadTexture() {
     if (enemyTexture.getSize().x == 0) {
-        if (!enemyTexture.loadFromFile("D:\\myGame\\assets\\enemy.png")) {
+        if (!enemyTexture.loadFromFile("assets/enemy.png")) {
             std::cerr << "Error: cannot load enemy.png from D:\\myGame\\assets" << std::endl;
         } else {
             std::cout << "Enemy texture loaded OK" << std::endl;
@@ -15,7 +15,7 @@ void Enemy::loadTexture() {
     }
 }
 
-Enemy::Enemy() : speed(150.0f), direction(0, 0), changeDirection(2.f), health(5) {
+Enemy::Enemy() : speed(50.0f), direction(0, 0), changeDirection(2.f), health(5) {
     loadTexture();
     enemySprite.setTexture(enemyTexture);
     enemySprite.setScale(0.15f, 0.15f);
