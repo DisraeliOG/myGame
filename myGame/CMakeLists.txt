@@ -28,3 +28,6 @@ add_executable(myGame Game.cpp
 )
 
 target_link_libraries(myGame sfml-graphics sfml-window sfml-system)
+
+file(COPY ${CMAKE_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_SOURCE_DIR}/fonts DESTINATION ${CMAKE_BINARY_DIR})
