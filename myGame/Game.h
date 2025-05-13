@@ -28,6 +28,9 @@ private:
     int enemiesPerWave = 3;
     float timeBetweenWaves = 5.f;
     sf::Clock waveClock;
+    sf::Clock gameClock;
+    bool finalTimeShown = false;
+    float finalSurvivalTime = 0.f;
 
     HUD hud;
 
@@ -39,10 +42,14 @@ private:
     void update();
     void render();
 
+    bool gameOver = false;
+
 public:
     Game();
     void run();
     void spawnEnemies();
+    void renderDeathScreen();
+    void restartGame();
     bool areAllEnemiesDefeated() const;
 };
 
