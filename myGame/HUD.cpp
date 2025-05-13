@@ -6,27 +6,39 @@ HUD::HUD() {
         std::cout << "Failed to load HUD font!" << std::endl;
     }
 
-    // HP Bar
     hpBarBack.setSize(sf::Vector2f(200.f, 20.f));
     hpBarBack.setFillColor(sf::Color(50, 50, 50));
-    hpBarBack.setPosition(20.f, 640.f); // 720p screen - bottom left
 
     hpBarFront.setSize(sf::Vector2f(200.f, 20.f));
     hpBarFront.setFillColor(sf::Color::Red);
-    hpBarFront.setPosition(20.f, 640.f);
 
-    // XP Bar
     xpBarBack.setSize(sf::Vector2f(200.f, 10.f));
     xpBarBack.setFillColor(sf::Color(50, 50, 50));
-    xpBarBack.setPosition(20.f, 665.f);
 
     xpBarFront.setSize(sf::Vector2f(200.f, 10.f));
     xpBarFront.setFillColor(sf::Color::Blue);
-    xpBarFront.setPosition(20.f, 665.f);
+
+    timeText.setFont(font);
+    timeText.setCharacterSize(50);
+    timeText.setFillColor(sf::Color::White);
+
+    finalTimeText.setFont(font);
+    finalTimeText.setCharacterSize(40);
+    finalTimeText.setFillColor(sf::Color::White);
+    finalTimeText.setStyle(sf::Text::Bold);
+
+    levelText.setFont(font);
+    levelText.setCharacterSize(30);
+    levelText.setFillColor(sf::Color::White);
 }
 
-void HUD::update(const Player& player, const sf::Vector2u& windowSize) {
-    // Расчёт позиции от нижнего края
+void HUD::update(const Player& player, const sf::Vector2u& windowSize, float elapsedTime) {
+    std::string timeStr = "Time: " + formatTime(elapsedTime);
+    timeText.setString(timeStr);
+
+    sf::FloatRect bounds = timeText.getLocalBounds();
+    timeText.setPosition(windowSize.x / 2.f - bounds.width / 2.f, 10.f);
+
     float x = 20.f;
     float y = static_cast<float>(windowSize.y) - 80.f;
 
@@ -36,7 +48,6 @@ void HUD::update(const Player& player, const sf::Vector2u& windowSize) {
     xpBarBack.setPosition(x, y + 25.f);
     xpBarFront.setPosition(x, y + 25.f);
 
-    // Обновление размеров
     float healthRatio = std::max(0.f, static_cast<float>(player.getHealth()) / 100.f);
     hpBarFront.setSize(sf::Vector2f(200.f * healthRatio, 20.f));
 
@@ -44,10 +55,12 @@ void HUD::update(const Player& player, const sf::Vector2u& windowSize) {
     int xpToNext = player.getExpToNextLevel();
     float xpRatio = xpToNext > 0 ? static_cast<float>(currentXP) / xpToNext : 0.f;
     xpBarFront.setSize(sf::Vector2f(200.f * xpRatio, 10.f));
+
+    levelText.setString("Level: " + std::to_string(player.getLevel()));
+    levelText.setPosition(20.f, y - 50.f);
 }
 
 void HUD::draw(sf::RenderWindow& window) {
-    // Set default view so HUD doesn't move with camera
     sf::View originalView = window.getView();
     window.setView(window.getDefaultView());
 
@@ -55,6 +68,17 @@ void HUD::draw(sf::RenderWindow& window) {
     window.draw(hpBarFront);
     window.draw(xpBarBack);
     window.draw(xpBarFront);
+    window.draw(levelText);
+    window.draw(timeText);
+    window.setView(originalView);
+}
 
-    window.setView(originalView); // Restore game view
+std::string HUD::formatTime(float timeInSeconds) {
+    int minutes = static_cast<int>(timeInSeconds) / 60;
+    int seconds = static_cast<int>(timeInSeconds) % 60;
+    return std::to_string(minutes) + ":" + (seconds < 10 ? "0" : "") + std::to_string(seconds);
+}
+
+void HUD::resetFinalTime() {
+    showFinalTime = false;
 }
