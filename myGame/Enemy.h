@@ -16,6 +16,7 @@ private:
     float changeDirection;
     int health;
     int damage = 1;
+    bool xpDropped = false;
 
 public:
     Enemy();
@@ -31,7 +32,14 @@ public:
     sf::FloatRect getBounds() const;
     sf::Clock attackCooldown;
     sf::Time attackDelay = sf::seconds(1.f);
+    bool shouldDropXp() const {
+      return !isAlive() && !xpDropped;
+    };
+    void markXpDropped() {
+      xpDropped = true;
+    }
+
 };
 
 
-#endif //ENEMY_H
+#endif
