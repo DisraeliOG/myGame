@@ -2,7 +2,8 @@
 #include <cmath>
 
 ExperienceOrb::ExperienceOrb(const sf::Vector2f& pos, int xp)
-        : position(pos), xpAmount(xp) {
+    : position(pos), xpAmount(xp)
+{
     orb.setRadius(radius);
     orb.setOrigin(radius, radius);
     orb.setFillColor(sf::Color::Green);
@@ -10,9 +11,9 @@ ExperienceOrb::ExperienceOrb(const sf::Vector2f& pos, int xp)
 }
 
 void ExperienceOrb::update(float deltaTime, const sf::Vector2f& playerPos) {
-    float pickupRange = 30.f;
+    const float pickupRange = 30.f;
     sf::Vector2f dir = playerPos - position;
-    float dist = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+    float dist = std::hypot(dir.x, dir.y);
 
     if (dist < pickupRange) {
         collected = true;
@@ -28,18 +29,6 @@ void ExperienceOrb::draw(sf::RenderWindow& window) const {
         window.draw(orb);
 }
 
-bool ExperienceOrb::isCollected() const {
-    return collected;
-}
-
-sf::FloatRect ExperienceOrb::getBounds() const {
-    return orb.getGlobalBounds();
-}
-
-int ExperienceOrb::getXP() const {
-    return xpAmount;
-}
-
-bool ExperienceOrb::isExpired() const {
-    return lifeClock.getElapsedTime().asSeconds() >= lifetime;
-}
+bool ExperienceOrb::isCollected() const { return collected; }
+sf::FloatRect ExperienceOrb::getBounds() const { return orb.getGlobalBounds(); }
+int ExperienceOrb::getXP() const      { return xpAmount; }
