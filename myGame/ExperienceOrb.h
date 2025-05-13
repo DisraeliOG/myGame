@@ -11,9 +11,6 @@ private:
     bool collected = false;
     int xpAmount;
 
-    sf::Clock lifeClock;
-    float lifetime = 15.f;
-
 public:
     ExperienceOrb(const sf::Vector2f& pos, int xp = 10);
 
@@ -23,8 +20,6 @@ public:
     bool isCollected() const;
     sf::FloatRect getBounds() const;
     int getXP() const;
-
-    bool isExpired() const;
 };
 
-#endif // EXPERIENCEORB_H
+#endif
