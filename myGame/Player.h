@@ -23,6 +23,7 @@ public:
     Player();
     void update(std::vector<Enemy>& enemies, float deltaTime);
     void draw(sf::RenderWindow &window);
+    void reset();
 
     sf::Vector2f getPosition() const;
     const std::vector<Bullet>& getBullets() const;
@@ -34,7 +35,6 @@ public:
     bool isDead() const { return dead; }
     sf::FloatRect getGlobalBounds() const;
 
-    // Опыт
     void addExperience(int amount);
     int getExperience() const { return experience; }
     int getExpToNextLevel() const { return expToNextLevel; }
