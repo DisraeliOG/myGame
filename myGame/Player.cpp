@@ -102,7 +102,27 @@ void Player::addExperience(int amount) {
     while (experience >= expToNextLevel) {
         experience -= expToNextLevel;
         level++;
-        expToNextLevel = static_cast<int>(expToNextLevel * 1.5f); // На след лвл нужно больше опыта
+        expToNextLevel = static_cast<int>(expToNextLevel * 1.5f);
         std::cout << "Level up! Now level " << level << std::endl;
     }
+}
+
+void Player::reset() {
+    if (!playerTexture.loadFromFile("assets/player.png")) {
+        std::cout << "Error loading player texture" << std::endl;
+    }
+    playerSprite.setTexture(playerTexture);
+    sf::FloatRect bounds = playerSprite.getLocalBounds();
+    playerSprite.setOrigin(bounds.width / 2, bounds.height / 2);
+    playerSprite.setPosition({400, 300});
+    playerSprite.setScale(0.15f, 0.15f);
+
+    health = 100;
+    experience = 0;
+    level = 1;
+    expToNextLevel = 100;
+    speed = 200.f;
+    dead = false;
+    bullets.clear();
+    shootClock.restart();
 }
