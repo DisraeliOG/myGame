@@ -105,7 +105,8 @@ void Game::spawnEnemies() {
     const float maxSpawnDistance = 2000.f;
 
     for (int i = 0; i < enemiesPerWave; ++i) {
-        Enemy newEnemy;
+        EnemyType type = (rand() % 2 == 0) ? EnemyType::Melee : EnemyType::Ranged;
+        Enemy newEnemy(type);
 
         float angle = static_cast<float>(rand()) / RAND_MAX * 2.f * 3.1415926f;
         float distance = minSpawnDistance + static_cast<float>(rand()) / RAND_MAX * (maxSpawnDistance - minSpawnDistance);
@@ -141,7 +142,7 @@ void Game::renderDeathScreen() {
 
     int minutes = static_cast<int>(finalSurvivalTime) / 60;
     int seconds = static_cast<int>(finalSurvivalTime) % 60;
-    std::string timeStr = "Survived: " + std::to_string(minutes) + "m " + std::to_string(seconds) + "s";
+    std::string timeStr = "Survival time: " + std::to_string(minutes) + "m " + std::to_string(seconds) + "s";
 
     sf::Text timeText(timeStr, font, 40);
     timeText.setFillColor(sf::Color::White);
