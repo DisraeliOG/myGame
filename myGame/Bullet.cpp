@@ -4,9 +4,11 @@
 
 sf::Texture Bullet::bulletTexture;
 
-Bullet::Bullet(sf::Vector2f startPos, sf::Vector2f targetPos) : isActive(true) {
+Bullet::Bullet(sf::Vector2f startPos, sf::Vector2f targetPos)
+    : isActive(true) {
+
   if (bulletTexture.getSize().x == 0) {
-    if (!bulletTexture.loadFromFile("D:\\myGame\\assets\\bullet.gif")) {
+    if (!bulletTexture.loadFromFile("assets\\bullet.gif")) {
       std::cerr << "Error: could not load bullet.png\n";
     }
   }
@@ -25,6 +27,9 @@ Bullet::Bullet(sf::Vector2f startPos, sf::Vector2f targetPos) : isActive(true) {
 
   float angle = std::atan2(velocity.y, velocity.x) * 180 / 3.14159265f;
   sprite.setRotation(angle);
+
+
+
 }
 
 void Bullet::update() {
