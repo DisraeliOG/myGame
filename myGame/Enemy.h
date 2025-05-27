@@ -1,10 +1,15 @@
 #ifndef ENEMY_H
 #define ENEMY_H
+#include "Bullet.h"
 class Player;
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
+enum class EnemyType {
+  Melee,
+  Ranged
+};
 
 class Enemy {
 private:
@@ -17,9 +22,12 @@ private:
     int health;
     int damage = 1;
     bool xpDropped = false;
+    bool alive = true;
+    float attackRange;
 
 public:
     Enemy();
+    Enemy(EnemyType type);
     static void loadTexture();
     void update(float deltaTime, const sf::Vector2f &playerPosition,
                 Player &player, std::vector<Enemy> &enemies);
@@ -31,15 +39,18 @@ public:
     bool isAlive() const;
     sf::FloatRect getBounds() const;
     sf::Clock attackCooldown;
-    sf::Time attackDelay = sf::seconds(1.f);
+    static constexpr float attackDelay = 2.0f;
     bool shouldDropXp() const {
       return !isAlive() && !xpDropped;
     };
     void markXpDropped() {
       xpDropped = true;
     }
+    EnemyType type;
+    std::vector<Bullet> bullets;
+
 
 };
 
 
-#endif
+#endif //ENEMY_H
