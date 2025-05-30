@@ -8,6 +8,11 @@
 #include "EnvironmentManager.h"
 #include "HUD.h"
 #include "ExperienceOrb.h"
+#include "Upgrade.h"
+#include <array>
+
+extern bool showingUpgradeMenu;
+extern std::array<UpgradePtr, 3> upgradeChoices;
 
 class Game {
 private:

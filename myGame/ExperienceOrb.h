@@ -12,7 +12,7 @@ private:
     int xpAmount;
 
 public:
-    ExperienceOrb(const sf::Vector2f& pos, int xp = 10);
+    ExperienceOrb(const sf::Vector2f& pos, int xp = 100);
 
     void update(float deltaTime, const sf::Vector2f& playerPos);
     void draw(sf::RenderWindow& window) const;

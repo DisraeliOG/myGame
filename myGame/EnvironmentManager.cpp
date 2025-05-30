@@ -9,17 +9,17 @@
 EnvironmentManager::EnvironmentManager(sf::Vector2u windowSize)
     : windowSize(windowSize)
 {
-    treeTexture.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\tree.png");
-    treeTexture2.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\tree2.png");
-    treeTexture3.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\tree3.png");
+    treeTexture.loadFromFile("assets/tree.png");
+    treeTexture2.loadFromFile("assets/tree2.png");
+    treeTexture3.loadFromFile("assets/tree3.png");
 
-    rockTexture.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\rock.png");
-    rockTexture2.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\rock2.png");
+    rockTexture.loadFromFile("assets/rock.png");
+    rockTexture2.loadFromFile("assets/rock2.png");
 
-    stickTexture.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\stick.png");
-    stickTexture2.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\stick2.png");
+    stickTexture.loadFromFile("assets/stick.png");
+    stickTexture2.loadFromFile("assets/stick2.png");
 
-    fountainTexture.loadFromFile("C:\\Users\\User\\CLionProjects\\myGame\\assets\\fountain.png");
+    fountainTexture.loadFromFile("assets/fountain.png");
     fountainSprite.setTexture(fountainTexture);
     fountainSprite.setScale(5.0f, 5.0f);
 

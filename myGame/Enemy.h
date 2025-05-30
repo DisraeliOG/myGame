@@ -48,8 +48,6 @@ public:
     }
     EnemyType type;
     std::vector<Bullet> bullets;
-
-
 };
 
 

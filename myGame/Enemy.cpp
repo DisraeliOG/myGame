@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include "Player.h"
+#include "Bullet.h"
 
 sf::Texture Enemy::enemyTexture;
 

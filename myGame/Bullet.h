@@ -9,6 +9,8 @@ public:
 
   void update();
   void draw(sf::RenderWindow& window) const;
+
+
   sf::FloatRect getBounds() const;
 
   bool isActive;

@@ -25,6 +25,10 @@ add_executable(myGame Game.cpp
         HUD.h
         ExperienceOrb.cpp
         ExperienceOrb.h
+        Upgrade.cpp
+        Upgrade.h
+        UpgradeManager.cpp
+        UpgradeManager.h
 )
 
 target_link_libraries(myGame sfml-graphics sfml-window sfml-system)

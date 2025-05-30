@@ -6,6 +6,10 @@
 #include <iostream>
 #include <cmath>
 #include <set>
+#include "UpgradeManager.h"
+
+bool showingUpgradeMenu = false;
+std::array<UpgradePtr, 3> upgradeChoices;
 
 Game::Game()
         : window(sf::VideoMode(1280, 720), "My Game"),
@@ -41,9 +45,55 @@ void Game::processEvents() {
         if (event.type == sf::Event::Closed)
             window.close();
     }
+    if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+        float buttonWidth = 300.f;
+        float buttonHeight = 100.f;
+        float spacing = 30.f;
+        float totalWidth = 3 * buttonWidth + 2 * spacing;
+        float startX = (window.getSize().x - totalWidth) / 2.f;
+        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+
+        for (int i = 0; i < 3; ++i) {
+            sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
+            if (bounds.contains(mousePos)) {
+                upgradeChoices[i]->apply(player);
+                showingUpgradeMenu = false;
+                break;
+            }
+        }
+    }
+    if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+        // Используем координаты в DefaultView (UI)
+        sf::View originalView = window.getView();
+        window.setView(window.getDefaultView());
+
+        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+        window.setView(originalView); // Обратно к игровой камере
+
+        float buttonWidth = 300.f;
+        float buttonHeight = 100.f;
+        float spacing = 30.f;
+        float totalWidth = 3 * buttonWidth + 2 * spacing;
+        float startX = (window.getSize().x - totalWidth) / 2.f;
+        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+
+        for (int i = 0; i < 3; ++i) {
+            sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
+            if (bounds.contains(mousePos)) {
+                upgradeChoices[i]->apply(player);
+                showingUpgradeMenu = false;
+                break;
+            }
+        }
+    }
 }
 
 void Game::update() {
+    if (showingUpgradeMenu || gameOver)
+        return;
     const float deltaTime = deltaClock.restart().asSeconds();
 
     if (player.isDead()) {
@@ -81,6 +131,14 @@ void Game::update() {
         if (orb.isCollected()) {
             player.addExperience(orb.getXP());
         }
+    }
+
+    if (player.hasJustLeveledUp()) {
+        auto upgrades = UpgradeManager::getRandomUpgrades(3);
+        for (int i = 0; i < 3; ++i) {
+            upgradeChoices[i] = upgrades[i];
+        }
+        showingUpgradeMenu = true;
     }
 
     experienceOrbs.erase(
@@ -257,6 +315,46 @@ void Game::render() {
     }
 
     hud.draw(window);
+
+    if (showingUpgradeMenu) {
+        sf::View originalView = window.getView();               // Сохраняем камеру
+        window.setView(window.getDefaultView());                // UI камера
+
+        sf::Font font;
+        if (!font.loadFromFile("fonts/DmitrievaSP.otf")) {
+            std::cout << "Failed to load font" << std::endl;
+            return;
+        }
+
+        float buttonWidth = 300.f;
+        float buttonHeight = 100.f;
+        float spacing = 30.f;
+        float totalWidth = 3 * buttonWidth + 2 * spacing;
+        float startX = (window.getSize().x - totalWidth) / 2.f;
+        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+
+        for (int i = 0; i < 3; ++i) {
+            sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
+            button.setPosition(startX + i * (buttonWidth + spacing), y);
+            button.setFillColor(sf::Color(60, 60, 60, 200));
+            button.setOutlineThickness(3.f);
+            button.setOutlineColor(sf::Color::White);
+
+            sf::Text text(upgradeChoices[i]->getName(), font, 22);
+            text.setFillColor(sf::Color::White);
+            text.setPosition(button.getPosition().x + 15, button.getPosition().y + 20);
+
+            sf::Text desc(upgradeChoices[i]->getDescription(), font, 16);
+            desc.setFillColor(sf::Color(200, 200, 200));
+            desc.setPosition(button.getPosition().x + 15, button.getPosition().y + 55);
+
+            window.draw(button);
+            window.draw(text);
+            window.draw(desc);
+        }
+
+        window.setView(originalView); // Возвращаем игровую камеру
+    }
 
     window.display();
 }
