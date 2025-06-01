@@ -17,6 +17,7 @@ extern std::array<UpgradePtr, 3> upgradeChoices;
 class Game {
 private:
     sf::RenderWindow window;
+    sf::Font gameFont;
     sf::View camera;
     sf::Texture backgroundTexture;
     sf::Sprite backgroundSprite;
@@ -31,11 +32,12 @@ private:
     std::vector<Enemy> enemies;
     int currentWave = 1;
     int enemiesPerWave = 3;
-    float timeBetweenWaves = 5.f;
+    float timeBetweenWaves = 10.f;
     sf::Clock waveClock;
     sf::Clock gameClock;
     bool finalTimeShown = false;
     float finalSurvivalTime = 0.f;
+    bool paused = false;
 
     HUD hud;
 
