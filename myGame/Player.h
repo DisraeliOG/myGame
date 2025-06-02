@@ -7,6 +7,12 @@ class Enemy;
 
 class Player {
 private:
+    int currentFrame = 0;
+    int frameCount = 5;
+    float animationTimer = 0.f;
+    const float frameDuration = 0.3f;
+
+    sf::Vector2i frameSize = {80, 80};
     sf::Texture playerTexture;
     sf::Sprite playerSprite;
     std::vector<Bullet> bullets;
