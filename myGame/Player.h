@@ -1,6 +1,8 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include <SFML/Audio.hpp>
+
 #include "Bullet.h"
 class Enemy;
 #include <SFML/Graphics.hpp>
@@ -25,6 +27,7 @@ private:
     float speed;
     float shootDelay = 0.8f;
     bool dead = false;
+    void shoot(std::vector<Bullet>& bullets, sf::Sound& shootSound);
 
 
     bool justLeveledUp = false;
@@ -32,6 +35,9 @@ private:
     int vampirismHeal = 0;
     float xpGainMultiplier = 1.f;
     sf::Clock hpRegenClock;
+
+    sf::SoundBuffer shootBuffer;
+    sf::Sound shootSound;
 
 public:
     Player();
