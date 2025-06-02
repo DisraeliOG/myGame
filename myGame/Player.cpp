@@ -17,6 +17,12 @@ Player::Player() {
     playerSprite.setScale(2.f, 2.f);
 
     speed = 200.f;
+
+    if (!shootBuffer.loadFromFile("sounds\\shoot.wav")) {
+        std::cout << "Error loading shoot sound" << std::endl;
+    } else {
+        shootSound.setBuffer(shootBuffer);
+    }
 }
 
 void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
@@ -76,12 +82,21 @@ void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
     }
 
     if (closestEnemy && shootClock.getElapsedTime().asSeconds() >= shootDelay) {
-        float dx = closestEnemy->getPosition().x - playerPos.x;
-        float dy = closestEnemy->getPosition().y - playerPos.y;
+        sf::Vector2f playerPos = playerSprite.getPosition();
+
+        sf::FloatRect enemyBounds = closestEnemy->getBounds();
+        sf::Vector2f enemyCenter(enemyBounds.left + enemyBounds.width / 2.f, enemyBounds.top + enemyBounds.height / 2.f);
+
+        float dx = enemyCenter.x - playerPos.x;
+        float dy = enemyCenter.y - playerPos.y;
         float distance = std::sqrt(dx * dx + dy * dy);
 
         if (distance <= shootRange) {
-            bullets.emplace_back(playerPos, closestEnemy->getPosition());
+            sf::Vector2f direction = { dx / distance, dy / distance };
+            sf::Vector2f bulletStartPos = playerPos + direction * 30.f;
+
+            bullets.emplace_back(bulletStartPos, enemyCenter);
+            shootSound.play();
             shootClock.restart();
         }
     }
