@@ -2,7 +2,7 @@
 #include <iostream>
 
 HUD::HUD() {
-    if (!font.loadFromFile("fonts/DmitrievaSP.otf")) {
+    if (!font.loadFromFile("fonts\\minecraft_0.ttf")) {
         std::cout << "Failed to load HUD font!" << std::endl;
     }
 
