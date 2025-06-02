@@ -1,6 +1,4 @@
-#ifndef BULLET_H
-#define BULLET_H
-
+#pragma once
 #include <SFML/Graphics.hpp>
 
 class Bullet {
@@ -9,8 +7,6 @@ public:
 
   void update();
   void draw(sf::RenderWindow& window) const;
-
-
   sf::FloatRect getBounds() const;
 
   bool isActive;
@@ -18,11 +14,10 @@ public:
 private:
   sf::Sprite sprite;
   static sf::Texture bulletTexture;
+  static float speed;
+
   sf::Vector2f velocity;
-  float speed = 1.5f;
-  float maxRange = 600.f;
-  float distanceTraveled = 0.f;
+  sf::Vector2f startPosition;
+  sf::Vector2f targetPosition;
+  float maxDistance;
 };
-
-
-#endif
