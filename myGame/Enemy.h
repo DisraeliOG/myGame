@@ -1,34 +1,50 @@
 #ifndef ENEMY_H
 #define ENEMY_H
+
 #include "Bullet.h"
 class Player;
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/System/Clock.hpp>
+
 enum class EnemyType {
-  Melee,
-  Ranged
+    Melee,
+    Ranged
 };
 
 class Enemy {
 private:
-    static sf::Texture enemyTexture;
+    static sf::Texture ghostTexture; // Для Ranged
+    static sf::Texture chechikTexture; // Для Melee
     sf::Sprite enemySprite;
-    float speed = 1;
+    float speed = 100.0f;
     sf::Vector2f direction;
-    sf::Clock movementClock;
-    float changeDirection;
     int health;
     int damage = 1;
+    int walkFrameCount = 3;
     bool xpDropped = false;
     bool alive = true;
     float attackRange;
 
+    // Анимация ходьбы
+    int currentFrame = 0;
+    float frameDuration = 0.15f; // Скорость переключения кадров
+    sf::Clock animationClock;
+    sf::IntRect walkFrameRect;
+    bool facingRight = true;
+
+    void setupForRanged();
+    void setupForMelee();
+
+    void updateWalkAnimation(float deltaTime);
+    void setWalkFrameRect(int col, int row, int width, int height);
+
 public:
     Enemy();
     Enemy(EnemyType type);
-    static void loadTexture();
+    static void loadTextures(); // Загрузка обоих спрайтов
     void update(float deltaTime, const sf::Vector2f &playerPosition,
                 Player &player, std::vector<Enemy> &enemies);
     sf::Vector2f getPosition() const;
@@ -41,14 +57,13 @@ public:
     sf::Clock attackCooldown;
     static constexpr float attackDelay = 2.0f;
     bool shouldDropXp() const {
-      return !isAlive() && !xpDropped;
+        return !isAlive() && !xpDropped;
     };
     void markXpDropped() {
-      xpDropped = true;
+        xpDropped = true;
     }
     EnemyType type;
     std::vector<Bullet> bullets;
 };
-
 
 #endif //ENEMY_H
