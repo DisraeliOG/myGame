@@ -16,8 +16,8 @@ enum class EnemyType {
 
 class Enemy {
 private:
-    static sf::Texture ghostTexture; // Для Ranged
-    static sf::Texture chechikTexture; // Для Melee
+    static sf::Texture ghostTexture;
+    static sf::Texture chechikTexture;
     sf::Sprite enemySprite;
     float speed = 100.0f;
     sf::Vector2f direction;
@@ -28,9 +28,8 @@ private:
     bool alive = true;
     float attackRange;
 
-    // Анимация ходьбы
     int currentFrame = 0;
-    float frameDuration = 0.15f; // Скорость переключения кадров
+    float frameDuration = 0.15f;
     sf::Clock animationClock;
     sf::IntRect walkFrameRect;
     bool facingRight = true;
@@ -44,7 +43,7 @@ private:
 public:
     Enemy();
     Enemy(EnemyType type);
-    static void loadTextures(); // Загрузка обоих спрайтов
+    static void loadTextures();
     void update(float deltaTime, const sf::Vector2f &playerPosition,
                 Player &player, std::vector<Enemy> &enemies);
     sf::Vector2f getPosition() const;
@@ -55,7 +54,7 @@ public:
     bool isAlive() const;
     sf::FloatRect getBounds() const;
     sf::Clock attackCooldown;
-    static constexpr float attackDelay = 2.0f;
+    static constexpr float attackDelay = 3.0f;
     bool shouldDropXp() const {
         return !isAlive() && !xpDropped;
     };
