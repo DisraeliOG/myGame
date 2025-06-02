@@ -37,7 +37,7 @@ Enemy::Enemy() : health(5) {
 }
 
 Enemy::Enemy(EnemyType type)
-        : health(5), type(type), alive(true) {
+        : health(2), type(type), alive(true) {
     loadTextures();
 
     if (type == EnemyType::Ranged) {
@@ -84,8 +84,6 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
     }
 
     sf::Vector2f position = enemySprite.getPosition();
-    float originX = enemySprite.getOrigin().x;
-    float width = enemySprite.getLocalBounds().width * enemySprite.getScale().x;
 
     if (directionToPlayer.x > 0.1f && !facingRight) {
         enemySprite.setScale(2.15f, 2.15f);
@@ -105,7 +103,10 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
 
     if (type == EnemyType::Ranged) {
         if (attackCooldown.getElapsedTime().asSeconds() >= attackDelay) {
-            bullets.emplace_back(enemySprite.getPosition(), playerPosition);
+            // Чтобы пули вылетали из центра врага, берем позицию хитбокса
+            sf::FloatRect hb = getBounds();
+            sf::Vector2f bulletStartPos(hb.left + hb.width / 2.f, hb.top + hb.height / 2.f);
+            bullets.emplace_back(bulletStartPos, playerPosition);
             attackCooldown.restart();
         }
 
@@ -140,8 +141,16 @@ sf::Vector2f Enemy::getPosition() const {
 
 void Enemy::draw(sf::RenderWindow& window) const {
     window.draw(enemySprite);
+
+    sf::FloatRect bounds = getBounds();
+    sf::RectangleShape hitbox(sf::Vector2f(bounds.width, bounds.height));
+    hitbox.setPosition(bounds.left, bounds.top);
+    hitbox.setFillColor(sf::Color::Transparent);
+    hitbox.setOutlineColor(sf::Color::Red);
+    hitbox.setOutlineThickness(1.f);
+    window.draw(hitbox);
+
     for (const auto& bullet : bullets) {
-        bullet.draw(window);
         bullet.draw(window);
     }
 }
@@ -158,7 +167,17 @@ bool Enemy::isAlive() const {
 }
 
 sf::FloatRect Enemy::getBounds() const {
-    return enemySprite.getGlobalBounds();
+    sf::FloatRect spriteBounds = enemySprite.getGlobalBounds();
+
+    float marginX = spriteBounds.width * 0.2f;
+    float marginY = spriteBounds.height * 0.2f;
+
+    return sf::FloatRect(
+        spriteBounds.left + marginX / 2.f,
+        spriteBounds.top + marginY / 2.f,
+        spriteBounds.width - marginX,
+        spriteBounds.height - marginY
+    );
 }
 
 void Enemy::updateWalkAnimation(float deltaTime) {
