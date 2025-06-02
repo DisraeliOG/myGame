@@ -6,23 +6,55 @@
 #include "Upgrade.h"
 
 Player::Player() {
-    if (!playerTexture.loadFromFile("assets/player.png")) {
+    if (!playerTexture.loadFromFile("assets\\MCSpriteSheet.png")) {
         std::cout << "Error loading player texture" << std::endl;
     }
     playerSprite.setTexture(playerTexture);
+    playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
     sf::FloatRect bounds = playerSprite.getLocalBounds();
-    playerSprite.setOrigin(bounds.width / 2, bounds.height / 2);
+    playerSprite.setOrigin(frameSize.x / 2.f, frameSize.y / 2.f);
     playerSprite.setPosition({400, 300});
-    playerSprite.setScale(0.15f, 0.15f);
+    playerSprite.setScale(2.f, 2.f);
 
     speed = 200.f;
 }
 
 void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) playerSprite.move(0, -speed * deltaTime);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) playerSprite.move(0, speed * deltaTime);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) playerSprite.move(-speed * deltaTime, 0);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) playerSprite.move(speed * deltaTime, 0);
+    sf::Vector2f movement(0.f, 0.f);
+
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) movement.y -= 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) movement.y += 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) movement.x -= 1.f;
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) movement.x += 1.f;
+
+    if (movement != sf::Vector2f(0.f, 0.f)) {
+        movement /= std::sqrt(movement.x * movement.x + movement.y * movement.y);
+    }
+
+    playerSprite.move(movement * speed * deltaTime);
+
+    if (movement != sf::Vector2f(0.f, 0.f)) {
+        animationTimer += deltaTime;
+        if (animationTimer >= frameDuration) {
+            animationTimer = 0.f;
+            currentFrame = (currentFrame + 1) % frameCount;
+            playerSprite.setTextureRect(sf::IntRect(
+                    currentFrame * frameSize.x,
+                    0, // строка анимации (0 - ходьба, 1 - атака и т.д.)
+                    frameSize.x,
+                    frameSize.y
+            ));
+        }
+
+        if (movement.x < 0) {
+            playerSprite.setScale(-2.f, 2.f); // влево
+        } else if (movement.x > 0) {
+            playerSprite.setScale(2.f, 2.f); // вправо
+        }
+    } else {
+        currentFrame = 0;
+        playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
+    }
 
 
     Enemy* closestEnemy = nullptr;
@@ -123,17 +155,19 @@ void Player::addExperience(int amount) {
 }
 
 void Player::reset() {
-    if (!playerTexture.loadFromFile("assets/player.png")) {
+    if (!playerTexture.loadFromFile("assets/MCSpriteSheet.png")) {
         std::cout << "Error loading player texture" << std::endl;
     }
+
     playerSprite.setTexture(playerTexture);
-    sf::FloatRect bounds = playerSprite.getLocalBounds();
-    playerSprite.setOrigin(bounds.width / 2, bounds.height / 2);
-    playerSprite.setPosition({400, 300});
-    playerSprite.setScale(0.15f, 0.15f);
+
+    playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
+
+    playerSprite.setOrigin(frameSize.x / 2.f, frameSize.y / 2.f);
+    playerSprite.setPosition(400, 300);
+    playerSprite.setScale(2.f, 2.f);
 
     health = maxHealth = 100;
-    maxHealth = 100;
     experience = 0;
     level = 1;
     expToNextLevel = 100;
