@@ -17,7 +17,7 @@ Game::Game()
 {
     std::srand(static_cast<unsigned>(std::time(nullptr)));
     sf::VideoMode desktopMode = sf::VideoMode::getDesktopMode();
-    window.create(desktopMode, "Vampire Survivors Clone", sf::Style::Fullscreen);
+    window.create(desktopMode, "Hell Yeah", sf::Style::Fullscreen);
 
     std::cout << "Window size: " << window.getSize().x << " x " << window.getSize().y << std::endl;
 
@@ -29,6 +29,35 @@ Game::Game()
     }
     backgroundSprite.setTexture(backgroundTexture);
     backgroundSprite.setScale(2.f, 2.f);
+
+    if (!selectBuffer.loadFromFile("sounds/select.wav") ||
+    !shootBuffer.loadFromFile("sounds/explosion.wav") ||
+    !enemyDieBuffer.loadFromFile("sounds/enemyDeath.wav") ||
+    !playerHitBuffer.loadFromFile("sounds/hitHurt.wav")||
+    !levelUpBuffer.loadFromFile("sounds/levelUp.wav")) {
+        std::cerr << "Error loading sounds" << std::endl;
+    }
+
+    levelUpSound.setBuffer(levelUpBuffer);
+    shootSound.setBuffer(shootBuffer);
+    enemyDieSound.setBuffer(enemyDieBuffer);
+    playerHitSound.setBuffer(playerHitBuffer);
+    selectSound.setBuffer(selectBuffer);
+
+    if (!bgm.openFromFile("sounds\\music.ogg")) {
+        std::cerr << "Failed to load background music" << std::endl;
+    }
+    if (!deathMusic.openFromFile("sounds\\deathMusic.mp3")) {
+        std::cout << "Failed to load death music\n";
+    }
+    bgm.setLoop(true);
+    deathMusic.setLoop(true);
+    bgm.play();
+
+    waveClock.restart();
+    spawnEnemies();
+
+
 }
 
 void Game::run() {
@@ -44,62 +73,48 @@ void Game::processEvents() {
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed)
             window.close();
-    }
-    if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-        float buttonWidth = 300.f;
-        float buttonHeight = 100.f;
-        float spacing = 30.f;
-        float totalWidth = 3 * buttonWidth + 2 * spacing;
-        float startX = (window.getSize().x - totalWidth) / 2.f;
-        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+        if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+            sf::View originalView = window.getView();
+            window.setView(window.getDefaultView());
 
-        for (int i = 0; i < 3; ++i) {
-            sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
-            if (bounds.contains(mousePos)) {
-                upgradeChoices[i]->apply(player);
-                showingUpgradeMenu = false;
-                break;
-            }
-        }
-    }
-    if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-        // Используем координаты в DefaultView (UI)
-        sf::View originalView = window.getView();
-        window.setView(window.getDefaultView());
+            sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+            window.setView(originalView);
 
-        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+            float buttonWidth = 300.f;
+            float buttonHeight = 120.f;
+            float spacing = 40.f;
+            float totalWidth = 3 * buttonWidth + 2 * spacing;
+            float startX = (window.getSize().x - totalWidth) / 2.f;
+            float y = window.getSize().y / 2.f - buttonHeight / 2.f;
 
-        window.setView(originalView); // Обратно к игровой камере
+            for (int i = 0; i < 3; ++i) {
+                sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
+                if (bounds.contains(mousePos)) {
+                    levelUpSound.play();
+                    upgradeChoices[i]->apply(player);
+                    showingUpgradeMenu = false;
+                    break;
+                }
 
-        float buttonWidth = 300.f;
-        float buttonHeight = 100.f;
-        float spacing = 30.f;
-        float totalWidth = 3 * buttonWidth + 2 * spacing;
-        float startX = (window.getSize().x - totalWidth) / 2.f;
-        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
-
-        for (int i = 0; i < 3; ++i) {
-            sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
-            if (bounds.contains(mousePos)) {
-                upgradeChoices[i]->apply(player);
-                showingUpgradeMenu = false;
-                break;
             }
         }
     }
 }
 
 void Game::update() {
-    if (showingUpgradeMenu || gameOver)
+    if (showingUpgradeMenu || gameOver) {
         return;
-    const float deltaTime = deltaClock.restart().asSeconds();
+    }
+    lastDeltaTime = deltaClock.restart().asSeconds();
 
     if (player.isDead()) {
         camera.setCenter(player.getPosition());
         window.setView(camera);
         gameOver = true;
+        bgm.stop();
+        deathMusic.play();
+
 
         if (!finalTimeShown) {
             finalSurvivalTime = gameClock.getElapsedTime().asSeconds();
@@ -109,7 +124,7 @@ void Game::update() {
         return;
     }
 
-    player.update(enemies, deltaTime);
+    player.update(enemies, lastDeltaTime);
     environment.update(player.getPosition());
 
     if (waveClock.getElapsedTime().asSeconds() >= timeBetweenWaves) {
@@ -119,15 +134,16 @@ void Game::update() {
 
     for (auto& enemy : enemies) {
         if (enemy.isAlive()) {
-            enemy.update(deltaTime, player.getPosition(), player, enemies);
+            enemy.update(lastDeltaTime, player.getPosition(), player, enemies);
         } else if (enemy.shouldDropXp()) {
             experienceOrbs.emplace_back(enemy.getPosition());
             enemy.markXpDropped();
+            enemyDieSound.play();
         }
     }
 
     for (auto& orb : experienceOrbs) {
-        orb.update(deltaTime, player.getPosition());
+        orb.update(lastDeltaTime, player.getPosition());
         if (orb.isCollected()) {
             player.addExperience(orb.getXP());
         }
@@ -138,8 +154,11 @@ void Game::update() {
         for (int i = 0; i < 3; ++i) {
             upgradeChoices[i] = upgrades[i];
         }
+        selectSound.play();
         showingUpgradeMenu = true;
+        return;
     }
+
 
     experienceOrbs.erase(
         std::remove_if(experienceOrbs.begin(), experienceOrbs.end(),
@@ -155,6 +174,7 @@ void Game::update() {
     camera.setCenter(player.getPosition());
     window.setView(camera);
 }
+
 
 
 void Game::spawnEnemies() {
@@ -185,7 +205,7 @@ void Game::renderDeathScreen() {
     window.clear();
 
     sf::Font font;
-    if (!font.loadFromFile("fonts/DmitrievaSP.otf")) {
+    if (!font.loadFromFile("fonts\\minecraft_0.ttf")) {
         std::cout << "Failed to load font" << std::endl;
         return;
     }
@@ -259,6 +279,8 @@ void Game::restartGame() {
 
     camera.setCenter(player.getPosition());
     window.setView(camera);
+    deathMusic.stop();
+    bgm.play();
 }
 
 
@@ -316,45 +338,60 @@ void Game::render() {
 
     hud.draw(window);
 
-    if (showingUpgradeMenu) {
-        sf::View originalView = window.getView();               // Сохраняем камеру
-        window.setView(window.getDefaultView());                // UI камера
+ if (showingUpgradeMenu) {
+    sf::View originalView = window.getView();
+    window.setView(window.getDefaultView());
 
-        sf::Font font;
-        if (!font.loadFromFile("fonts/DmitrievaSP.otf")) {
-            std::cout << "Failed to load font" << std::endl;
-            return;
-        }
-
-        float buttonWidth = 300.f;
-        float buttonHeight = 100.f;
-        float spacing = 30.f;
-        float totalWidth = 3 * buttonWidth + 2 * spacing;
-        float startX = (window.getSize().x - totalWidth) / 2.f;
-        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
-
-        for (int i = 0; i < 3; ++i) {
-            sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
-            button.setPosition(startX + i * (buttonWidth + spacing), y);
-            button.setFillColor(sf::Color(60, 60, 60, 200));
-            button.setOutlineThickness(3.f);
-            button.setOutlineColor(sf::Color::White);
-
-            sf::Text text(upgradeChoices[i]->getName(), font, 22);
-            text.setFillColor(sf::Color::White);
-            text.setPosition(button.getPosition().x + 15, button.getPosition().y + 20);
-
-            sf::Text desc(upgradeChoices[i]->getDescription(), font, 16);
-            desc.setFillColor(sf::Color(200, 200, 200));
-            desc.setPosition(button.getPosition().x + 15, button.getPosition().y + 55);
-
-            window.draw(button);
-            window.draw(text);
-            window.draw(desc);
-        }
-
-        window.setView(originalView); // Возвращаем игровую камеру
+    sf::Font font;
+    if (!font.loadFromFile("fonts\\minecraft_0.ttf")) {
+        std::cout << "Failed to load font" << std::endl;
+        return;
     }
+
+    sf::RectangleShape overlay(sf::Vector2f(window.getSize()));
+    overlay.setFillColor(sf::Color(0, 0, 0, 160));
+    window.draw(overlay);
+
+    float buttonWidth = 300.f;
+    float buttonHeight = 120.f;
+    float spacing = 40.f;
+    float totalWidth = 3 * buttonWidth + 2 * spacing;
+    float startX = (window.getSize().x - totalWidth) / 2.f;
+    float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+
+    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+    for (int i = 0; i < 3; ++i) {
+        sf::Vector2f pos(startX + i * (buttonWidth + spacing), y);
+        sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
+        button.setPosition(pos);
+
+        sf::FloatRect bounds(pos.x, pos.y, buttonWidth, buttonHeight);
+        bool hovered = bounds.contains(mousePos);
+        button.setFillColor(hovered ? sf::Color(100, 100, 100, 220) : sf::Color(60, 60, 60, 200));
+        button.setOutlineThickness(hovered ? 4.f : 2.f);
+        button.setOutlineColor(hovered ? sf::Color::Yellow : sf::Color::White);
+
+        sf::Text name(upgradeChoices[i]->getName(), font, 26);
+        name.setFillColor(sf::Color::White);
+        sf::FloatRect nameBounds = name.getLocalBounds();
+        name.setOrigin(nameBounds.width / 2.f, 0);
+        name.setPosition(pos.x + buttonWidth / 2.f, pos.y + 10.f);
+
+        sf::Text desc(upgradeChoices[i]->getDescription(), font, 18);
+        desc.setFillColor(sf::Color(200, 200, 200));
+        sf::FloatRect descBounds = desc.getLocalBounds();
+        desc.setOrigin(descBounds.width / 2.f, 0);
+        desc.setPosition(pos.x + buttonWidth / 2.f, pos.y + 60.f);
+
+        window.draw(button);
+        window.draw(name);
+        window.draw(desc);
+    }
+
+    window.setView(originalView);
+}
+
 
     window.display();
 }
