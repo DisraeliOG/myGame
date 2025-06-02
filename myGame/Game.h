@@ -10,6 +10,7 @@
 #include "ExperienceOrb.h"
 #include "Upgrade.h"
 #include <array>
+#include <SFML/Audio.hpp>
 
 extern bool showingUpgradeMenu;
 extern std::array<UpgradePtr, 3> upgradeChoices;
@@ -36,6 +37,23 @@ private:
     sf::Clock gameClock;
     bool finalTimeShown = false;
     float finalSurvivalTime = 0.f;
+    float lastDeltaTime = 0.f;
+
+    sf::SoundBuffer levelUpBuffer;
+    sf::SoundBuffer selectBuffer;
+    sf::SoundBuffer shootBuffer;
+    sf::SoundBuffer enemyDieBuffer;
+    sf::SoundBuffer playerHitBuffer;
+
+    sf::Sound levelUpSound;
+    sf::Sound selectSound;
+    sf::Sound shootSound;
+    sf::Sound enemyDieSound;
+    sf::Sound playerHitSound;
+
+    sf::Music bgm;
+    sf::Music deathMusic;
+
 
     HUD hud;
 
