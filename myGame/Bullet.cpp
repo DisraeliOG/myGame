@@ -3,13 +3,14 @@
 #include <iostream>
 
 sf::Texture Bullet::bulletTexture;
+float Bullet::speed = 2.f;
 
 Bullet::Bullet(sf::Vector2f startPos, sf::Vector2f targetPos)
-    : isActive(true) {
+    : isActive(true), startPosition(startPos), targetPosition(targetPos) {
 
   if (bulletTexture.getSize().x == 0) {
     if (!bulletTexture.loadFromFile("assets\\bullet.gif")) {
-      std::cerr << "Error: could not load bullet.png\n";
+      std::cerr << "Error: could not load bullet.gif\n";
     }
   }
 
@@ -25,17 +26,20 @@ Bullet::Bullet(sf::Vector2f startPos, sf::Vector2f targetPos)
   else
     velocity = {0.f, 0.f};
 
-  float angle = std::atan2(velocity.y, velocity.x) * 180 / 3.14159265f;
+  maxDistance = length;
+
+  float angle = std::atan2(velocity.y, velocity.x) * 180.f / 3.14159265f;
   sprite.setRotation(angle);
-
-
-
 }
 
 void Bullet::update() {
   sprite.move(velocity);
-  distanceTraveled += std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-  if (distanceTraveled >= maxRange) {
+
+  sf::Vector2f currentPos = sprite.getPosition();
+  sf::Vector2f diff = currentPos - startPosition;
+  float traveledDistance = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+
+  if (traveledDistance >= maxDistance) {
     isActive = false;
   }
 }
