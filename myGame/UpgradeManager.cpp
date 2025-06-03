@@ -9,7 +9,14 @@ std::vector<UpgradePtr> UpgradeManager::getRandomUpgrades(int count) {
             std::make_shared<SpeedBoostUpgrade>(),
             std::make_shared<HpRegenUpgrade>(),
             std::make_shared<VampirismUpgrade>(),
-            std::make_shared<XPGainUpgrade>()
+            std::make_shared<XPGainUpgrade>(),
+            std::make_shared<MegaHealthUpgrade>(),
+            std::make_shared<RapidFireUpgrade>(),
+            std::make_shared<SprintBoostUpgrade>(),
+            std::make_shared<AdvancedHpRegenUpgrade>(),
+            std::make_shared<GreaterVampirismUpgrade>(),
+            std::make_shared<ShieldUpgrade>(),
+            std::make_shared<XPSurgeUpgrade>()
     };
 
     std::shuffle(allUpgrades.begin(), allUpgrades.end(), std::default_random_engine(std::random_device{}()));
