@@ -58,7 +58,6 @@ HUD::HUD() {
 }
 
 void HUD::update(const Player& player, const sf::Vector2u& windowSize, float elapsedTime, const Boss* boss) {
-
     std::string timeStr = "Time: " + formatTime(elapsedTime);
     timeText.setString(timeStr);
 
@@ -115,12 +114,16 @@ void HUD::update(const Player& player, const sf::Vector2u& windowSize, float ela
 
         bossHpBarBack.setPosition(posX, posY);
         bossHpBarFront.setPosition(posX, posY);
-
         sf::FloatRect textBounds = bossNameText.getLocalBounds();
-        bossNameText.setOrigin(textBounds.width / 2.f, textBounds.height / 2.f);
+        bossNameText.setOrigin(textBounds.left + textBounds.width / 2.f, textBounds.top + textBounds.height / 2.f);
+
         bossNameText.setPosition(posX + bossBarWidth / 2.f, posY + bossBarHeight / 2.f);
+
     } else {
         isBossBarVisible = false;
+        bossHpBarBack.setPosition(-1000.f, -1000.f);
+        bossHpBarFront.setPosition(-1000.f, -1000.f);
+        bossNameText.setPosition(-1000.f, -1000.f);
     }
 }
 
@@ -137,7 +140,7 @@ void HUD::draw(sf::RenderWindow& window) {
     window.draw(levelText);
     window.draw(timeText);
 
-    if (bossHpBarBack.getSize().x > 0) {
+    if (isBossBarVisible) {
         window.draw(bossHpBarBack);
         window.draw(bossHpBarFront);
         window.draw(bossNameText);
