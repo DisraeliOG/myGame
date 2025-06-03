@@ -20,7 +20,6 @@ Game::Game()
     window.create(desktopMode, "Hell Yeah", sf::Style::Fullscreen);
 
     std::cout << "Window size: " << window.getSize().x << " x " << window.getSize().y << std::endl;
-
     camera.setSize(window.getSize().x, window.getSize().y);
     camera.setCenter(window.getSize().x / 2.f, window.getSize().y / 2.f);
 
@@ -34,7 +33,7 @@ Game::Game()
     !shootBuffer.loadFromFile("sounds/explosion.wav") ||
     !enemyDieBuffer.loadFromFile("sounds/enemyDeath.wav") ||
     !playerHitBuffer.loadFromFile("sounds/hitHurt.wav")||
-    !levelUpBuffer.loadFromFile("sounds/levelUp.wav")) {
+    !levelUpBuffer.loadFromFile("sounds/levelUp.wav")){
         std::cerr << "Error loading sounds" << std::endl;
     }
 
@@ -43,6 +42,7 @@ Game::Game()
     enemyDieSound.setBuffer(enemyDieBuffer);
     playerHitSound.setBuffer(playerHitBuffer);
     selectSound.setBuffer(selectBuffer);
+
 
     if (!bgm.openFromFile("sounds\\music.ogg")) {
         std::cerr << "Failed to load background music" << std::endl;
@@ -56,8 +56,6 @@ Game::Game()
 
     waveClock.restart();
     spawnEnemies();
-
-
 }
 
 void Game::run() {
@@ -73,7 +71,6 @@ void Game::processEvents() {
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed)
             window.close();
-
         if (showingUpgradeMenu && event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
             sf::View originalView = window.getView();
             window.setView(window.getDefaultView());
@@ -87,7 +84,6 @@ void Game::processEvents() {
             float totalWidth = 3 * buttonWidth + 2 * spacing;
             float startX = (window.getSize().x - totalWidth) / 2.f;
             float y = window.getSize().y / 2.f - buttonHeight / 2.f;
-
             for (int i = 0; i < 3; ++i) {
                 sf::FloatRect bounds(startX + i * (buttonWidth + spacing), y, buttonWidth, buttonHeight);
                 if (bounds.contains(mousePos)) {
@@ -96,69 +92,65 @@ void Game::processEvents() {
                     showingUpgradeMenu = false;
                     break;
                 }
-
             }
         }
     }
 }
 
 void Game::update() {
+    deltaTime = deltaClock.restart().asSeconds();
     if (showingUpgradeMenu || gameOver) {
         return;
     }
-    lastDeltaTime = deltaClock.restart().asSeconds();
 
-    if (player.isDead()) {
-        camera.setCenter(player.getPosition());
-        window.setView(camera);
-        gameOver = true;
-        bgm.stop();
-        deathMusic.play();
-
-
-        if (!finalTimeShown) {
-            finalSurvivalTime = gameClock.getElapsedTime().asSeconds();
-            finalTimeShown = true;
-        }
-
-        return;
-    }
-
-    player.update(enemies, lastDeltaTime);
+    player.update(enemies, deltaTime);
     environment.update(player.getPosition());
 
-    if (waveClock.getElapsedTime().asSeconds() >= timeBetweenWaves) {
-        spawnEnemies();
-        waveClock.restart();
+    if (!bossSpawned && !bossDefeated && gameClock.getElapsedTime().asSeconds() >= 100.f) {
+        bossSpawned = true;
+        enemies.clear();
+
+        auto newBoss = std::make_unique<Boss>();
+        newBoss->setPosition(player.getPosition().x + 200.f, player.getPosition().y);
+        enemies.push_back(std::move(newBoss));
+        std::cout << "Boss spawned!" << std::endl;
     }
 
-    for (auto& enemy : enemies) {
-        if (enemy.isAlive()) {
-            enemy.update(lastDeltaTime, player.getPosition(), player, enemies);
-        } else if (enemy.shouldDropXp()) {
-            experienceOrbs.emplace_back(enemy.getPosition());
-            enemy.markXpDropped();
-            enemyDieSound.play();
+    Boss* activeBossPtr = nullptr;
+    for (size_t i = 0; i < enemies.size(); ) {
+        auto& enemy = enemies[i];
+        if (enemy->isAlive()) {
+            enemy->update(deltaTime, player.getPosition(), player, enemies);
+            if (auto* bossCast = dynamic_cast<Boss*>(enemy.get())) {
+                activeBossPtr = bossCast;
+            }
+            i++;
+        } else {
+            if (dynamic_cast<Boss*>(enemy.get()) && !bossDefeated) {
+                bossDefeated = true;
+                std::cout << "Boss has been defeated! Normal enemies will resume spawning." << std::endl;
+
+                sf::Vector2f bossDeathPos = enemy->getPosition();
+                int numOrbs = 50;
+                float circleRadius = 150.f;
+                int xpPerOrb = 50;
+                spawnExperienceOrbsInCircle(bossDeathPos, numOrbs, circleRadius, xpPerOrb);
+
+            } else if (enemy->shouldDropXp()) {
+                experienceOrbs.emplace_back(enemy->getPosition());
+                enemy->markXpDropped();
+                enemyDieSound.play();
+            }
+            enemies.erase(enemies.begin() + i);
         }
     }
 
     for (auto& orb : experienceOrbs) {
-        orb.update(lastDeltaTime, player.getPosition());
+        orb.update(deltaTime, player.getPosition());
         if (orb.isCollected()) {
             player.addExperience(orb.getXP());
         }
     }
-
-    if (player.hasJustLeveledUp()) {
-        auto upgrades = UpgradeManager::getRandomUpgrades(3);
-        for (int i = 0; i < 3; ++i) {
-            upgradeChoices[i] = upgrades[i];
-        }
-        selectSound.play();
-        showingUpgradeMenu = true;
-        return;
-    }
-
 
     experienceOrbs.erase(
         std::remove_if(experienceOrbs.begin(), experienceOrbs.end(),
@@ -168,23 +160,48 @@ void Game::update() {
         experienceOrbs.end()
     );
 
+    if ((!bossSpawned || bossDefeated) && waveClock.getElapsedTime().asSeconds() >= timeBetweenWaves) {
+        spawnEnemies();
+        waveClock.restart();
+    }
+
+    if (player.isDead()) {
+        gameOver = true;
+        bgm.stop();
+        deathMusic.play();
+
+        if (!finalTimeShown) {
+            finalSurvivalTime = gameClock.getElapsedTime().asSeconds();
+            finalTimeShown = true;
+        }
+        return;
+    }
+
+    if (player.hasJustLeveledUp()) {
+        auto upgrades = UpgradeManager::getRandomUpgrades(3);
+        for (int i = 0; i < 3; ++i) {
+            upgradeChoices[i] = upgrades[i];
+        }
+        selectSound.play();
+        showingUpgradeMenu = true;
+    }
+
+    player.updateShield(deltaTime);
     float elapsedTime = gameClock.getElapsedTime().asSeconds();
-    hud.update(player, window.getSize(), elapsedTime);
+    hud.update(player, window.getSize(), elapsedTime, activeBossPtr);
 
     camera.setCenter(player.getPosition());
     window.setView(camera);
 }
 
-
-
 void Game::spawnEnemies() {
+    if (isBossBattle()) return;
     const sf::Vector2f playerPos = player.getPosition();
     const float minSpawnDistance = 1200.f;
     const float maxSpawnDistance = 2000.f;
-
     for (int i = 0; i < enemiesPerWave; ++i) {
         EnemyType type = (rand() % 2 == 0) ? EnemyType::Melee : EnemyType::Ranged;
-        Enemy newEnemy(type);
+        auto newEnemy = std::make_unique<Enemy>(type);
 
         float angle = static_cast<float>(rand()) / RAND_MAX * 2.f * 3.1415926f;
         float distance = minSpawnDistance + static_cast<float>(rand()) / RAND_MAX * (maxSpawnDistance - minSpawnDistance);
@@ -192,8 +209,8 @@ void Game::spawnEnemies() {
         float x = playerPos.x + std::cos(angle) * distance;
         float y = playerPos.y + std::sin(angle) * distance;
 
-        newEnemy.setPosition(x, y);
-        enemies.push_back(newEnemy);
+        newEnemy->setPosition(x, y);
+        enemies.push_back(std::move(newEnemy));
     }
 
     enemiesPerWave += 2;
@@ -281,27 +298,35 @@ void Game::restartGame() {
     window.setView(camera);
     deathMusic.stop();
     bgm.play();
+
+    bossSpawned = false;
+    bossDefeated = false;
+    currentBoss.reset();
 }
 
+void Game::spawnExperienceOrbsInCircle(const sf::Vector2f& centerPos, int count, float radius, int xpPerOrb) {
+    for (int i = 0; i < count; ++i) {
+        float angle = static_cast<float>(i) / count * 2.f * 3.14159265f;
+        float x = centerPos.x + std::cos(angle) * radius;
+        float y = centerPos.y + std::sin(angle) * radius;
+        experienceOrbs.emplace_back(sf::Vector2f(x, y), xpPerOrb);
+    }
+}
 
 void Game::render() {
     window.clear();
     window.setFramerateLimit(144);
-
     sf::Vector2f viewCenter = camera.getCenter();
     sf::Vector2f viewSize = camera.getSize();
     sf::Vector2u textureSize = backgroundTexture.getSize();
     float scaleX = backgroundSprite.getScale().x;
     float scaleY = backgroundSprite.getScale().y;
-
     float texWidth = textureSize.x * scaleX;
     float texHeight = textureSize.y * scaleY;
-
     int left = static_cast<int>((viewCenter.x - viewSize.x / 2) / texWidth) - 1;
     int right = static_cast<int>((viewCenter.x + viewSize.x / 2) / texWidth) + 1;
     int top = static_cast<int>((viewCenter.y - viewSize.y / 2) / texHeight) - 1;
     int bottom = static_cast<int>((viewCenter.y + viewSize.y / 2) / texHeight) + 1;
-
     for (int x = left; x <= right; ++x) {
         for (int y = top; y <= bottom; ++y) {
             backgroundSprite.setPosition(x * texWidth, y * texHeight);
@@ -310,17 +335,17 @@ void Game::render() {
     }
     environment.draw(window);
 
-
     player.draw(window);
     for (const auto& bullet : player.getBullets()) {
         bullet.draw(window);
     }
 
     for (const auto& enemy : enemies) {
-        if (enemy.isAlive()) {
-            enemy.draw(window);
+        if (enemy->isAlive()) {
+            enemy->draw(window);
         }
     }
+
     if (gameOver) {
         renderDeathScreen();
         return;
@@ -330,68 +355,54 @@ void Game::render() {
         orb.draw(window);
     }
 
-
-
-    if (gameOver) {
-
-    }
-
     hud.draw(window);
+    if (showingUpgradeMenu) {
+        sf::View originalView = window.getView();
+        window.setView(window.getDefaultView());
 
- if (showingUpgradeMenu) {
-    sf::View originalView = window.getView();
-    window.setView(window.getDefaultView());
+        const sf::Font& menuFont = hud.getFont();
 
-    sf::Font font;
-    if (!font.loadFromFile("fonts\\minecraft_0.ttf")) {
-        std::cout << "Failed to load font" << std::endl;
-        return;
+        sf::RectangleShape overlay(sf::Vector2f(window.getSize()));
+        overlay.setFillColor(sf::Color(0, 0, 0, 160));
+        window.draw(overlay);
+
+        float buttonWidth = 300.f;
+        float buttonHeight = 120.f;
+        float spacing = 40.f;
+        float totalWidth = 3 * buttonWidth + 2 * spacing;
+        float startX = (window.getSize().x - totalWidth) / 2.f;
+        float y = window.getSize().y / 2.f - buttonHeight / 2.f;
+        sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+
+        for (int i = 0; i < 3; ++i) {
+            sf::Vector2f pos(startX + i * (buttonWidth + spacing), y);
+            sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
+            button.setPosition(pos);
+
+            sf::FloatRect bounds(pos.x, pos.y, buttonWidth, buttonHeight);
+            bool hovered = bounds.contains(mousePos);
+            button.setFillColor(hovered ? sf::Color(100, 100, 100, 220) : sf::Color(60, 60, 60, 200));
+            button.setOutlineThickness(hovered ? 4.f : 2.f);
+            button.setOutlineColor(hovered ? sf::Color::Yellow : sf::Color::White);
+
+            sf::Text name(upgradeChoices[i]->getName(), menuFont, 26);
+            name.setFillColor(sf::Color::White);
+            sf::FloatRect nameBounds = name.getLocalBounds();
+            name.setOrigin(nameBounds.width / 2.f, 0);
+            name.setPosition(pos.x + buttonWidth / 2.f, pos.y + 10.f);
+
+            sf::Text desc(upgradeChoices[i]->getDescription(), menuFont, 18);
+            desc.setFillColor(sf::Color(200, 200, 200));
+            sf::FloatRect descBounds = desc.getLocalBounds();
+            desc.setOrigin(descBounds.width / 2.f, 0);
+            desc.setPosition(pos.x + buttonWidth / 2.f, pos.y + 60.f);
+
+            window.draw(button);
+            window.draw(name);
+            window.draw(desc);
+        }
+        window.setView(originalView);
     }
-
-    sf::RectangleShape overlay(sf::Vector2f(window.getSize()));
-    overlay.setFillColor(sf::Color(0, 0, 0, 160));
-    window.draw(overlay);
-
-    float buttonWidth = 300.f;
-    float buttonHeight = 120.f;
-    float spacing = 40.f;
-    float totalWidth = 3 * buttonWidth + 2 * spacing;
-    float startX = (window.getSize().x - totalWidth) / 2.f;
-    float y = window.getSize().y / 2.f - buttonHeight / 2.f;
-
-    sf::Vector2f mousePos = window.mapPixelToCoords(sf::Mouse::getPosition(window));
-
-    for (int i = 0; i < 3; ++i) {
-        sf::Vector2f pos(startX + i * (buttonWidth + spacing), y);
-        sf::RectangleShape button(sf::Vector2f(buttonWidth, buttonHeight));
-        button.setPosition(pos);
-
-        sf::FloatRect bounds(pos.x, pos.y, buttonWidth, buttonHeight);
-        bool hovered = bounds.contains(mousePos);
-        button.setFillColor(hovered ? sf::Color(100, 100, 100, 220) : sf::Color(60, 60, 60, 200));
-        button.setOutlineThickness(hovered ? 4.f : 2.f);
-        button.setOutlineColor(hovered ? sf::Color::Yellow : sf::Color::White);
-
-        sf::Text name(upgradeChoices[i]->getName(), font, 26);
-        name.setFillColor(sf::Color::White);
-        sf::FloatRect nameBounds = name.getLocalBounds();
-        name.setOrigin(nameBounds.width / 2.f, 0);
-        name.setPosition(pos.x + buttonWidth / 2.f, pos.y + 10.f);
-
-        sf::Text desc(upgradeChoices[i]->getDescription(), font, 18);
-        desc.setFillColor(sf::Color(200, 200, 200));
-        sf::FloatRect descBounds = desc.getLocalBounds();
-        desc.setOrigin(descBounds.width / 2.f, 0);
-        desc.setPosition(pos.x + buttonWidth / 2.f, pos.y + 60.f);
-
-        window.draw(button);
-        window.draw(name);
-        window.draw(desc);
-    }
-
-    window.setView(originalView);
-}
-
 
     window.display();
 }
