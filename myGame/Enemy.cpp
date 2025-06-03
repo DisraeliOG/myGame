@@ -1,6 +1,7 @@
 #include "Enemy.h"
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 #include "Player.h"
 #include "Bullet.h"
 
@@ -10,7 +11,7 @@ sf::Texture Enemy::chechikTexture;
 void Enemy::loadTextures() {
     if (ghostTexture.getSize().x == 0) {
         if (!ghostTexture.loadFromFile("assets\\ghost_final.png")) {
-            std::cerr << "Error: cannot load ghost.png from assets" << std::endl;
+            std::cerr << "Error: cannot load ghost_final.png from assets" << std::endl;
         } else {
             std::cout << "Ghost texture loaded OK" << std::endl;
         }
@@ -25,10 +26,11 @@ void Enemy::loadTextures() {
     }
 }
 
-Enemy::Enemy() : health(5) {
+Enemy::Enemy() : health(5), alive(true) {
     loadTextures();
     enemySprite.setTexture(ghostTexture);
     enemySprite.setScale(2.15f, 2.15f);
+    enemySprite.setOrigin(enemySprite.getLocalBounds().width / 2.f, enemySprite.getLocalBounds().height / 2.f);
     randomizeDirection();
 
     const int FRAME_WIDTH = 80;
@@ -37,7 +39,7 @@ Enemy::Enemy() : health(5) {
 }
 
 Enemy::Enemy(EnemyType type)
-        : health(2), type(type), alive(true) {
+        : health(type == EnemyType::Ranged ? 2 : 5), type(type), alive(true) {
     loadTextures();
 
     if (type == EnemyType::Ranged) {
@@ -54,12 +56,11 @@ Enemy::Enemy(EnemyType type)
 }
 
 void Enemy::randomizeDirection() {
-    direction.x = (std::rand() % 3 - 1);
-    direction.y = (std::rand() % 3 - 1);
+    direction.x = static_cast<float>(std::rand() % 3 - 1);
+    direction.y = static_cast<float>(std::rand() % 3 - 1);
 }
 
-void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
-                   Player& player, std::vector<Enemy>& enemies) {
+void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition, Player& player, std::vector<std::unique_ptr<Enemy>>& enemies) {
     if (!isAlive()) return;
 
     sf::Vector2f directionToPlayer = playerPosition - enemySprite.getPosition();
@@ -70,10 +71,10 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
 
     enemySprite.move(directionToPlayer * speed * deltaTime);
 
-    for (auto& otherEnemy : enemies) {
-        if (&otherEnemy != this && otherEnemy.isAlive()) {
-            if (this->getBounds().intersects(otherEnemy.getBounds())) {
-                sf::Vector2f pushAway = enemySprite.getPosition() - otherEnemy.getPosition();
+    for (auto& otherPtr : enemies) {
+        if (otherPtr.get() != this && otherPtr->isAlive()) {
+            if (this->getBounds().intersects(otherPtr->getBounds())) {
+                sf::Vector2f pushAway = enemySprite.getPosition() - otherPtr->getPosition();
                 float pushLength = std::sqrt(pushAway.x * pushAway.x + pushAway.y * pushAway.y);
                 if (pushLength != 0) {
                     pushAway /= pushLength;
@@ -87,13 +88,9 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
 
     if (directionToPlayer.x > 0.1f && !facingRight) {
         enemySprite.setScale(2.15f, 2.15f);
-        enemySprite.setOrigin(0.f, 0.f);
-        enemySprite.setPosition(position);
         facingRight = true;
     } else if (directionToPlayer.x < -0.1f && facingRight) {
         enemySprite.setScale(-2.15f, 2.15f);
-        enemySprite.setOrigin(enemySprite.getLocalBounds().width, 0.f);
-        enemySprite.setPosition(position);
         facingRight = false;
     }
 
@@ -103,10 +100,13 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
 
     if (type == EnemyType::Ranged) {
         if (attackCooldown.getElapsedTime().asSeconds() >= attackDelay) {
-            // Чтобы пули вылетали из центра врага, берем позицию хитбокса
             sf::FloatRect hb = getBounds();
             sf::Vector2f bulletStartPos(hb.left + hb.width / 2.f, hb.top + hb.height / 2.f);
-            bullets.emplace_back(bulletStartPos, playerPosition);
+            float enemyBulletScale = 0.3f;
+            int enemyBulletDamage = 1;
+
+            bullets.emplace_back(bulletStartPos, playerPosition, 2.5, enemyBulletDamage, 600, bulletTexturePath);
+
             attackCooldown.restart();
         }
 
@@ -118,7 +118,7 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
                 std::remove_if(bullets.begin(), bullets.end(),
                                [&](Bullet& b) {
                                    if (b.getBounds().intersects(player.getGlobalBounds())) {
-                                       player.takeDamage(10);
+                                       player.takeDamage(b.damage);
                                        return true;
                                    }
                                    return !b.isActive;
@@ -128,7 +128,7 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition,
     } else {
         if (enemySprite.getGlobalBounds().intersects(player.getGlobalBounds())) {
             if (attackCooldown.getElapsedTime().asSeconds() >= attackDelay) {
-                player.takeDamage(10);
+                player.takeDamage(damage);
                 attackCooldown.restart();
             }
         }
@@ -155,28 +155,31 @@ void Enemy::draw(sf::RenderWindow& window) const {
     }
 }
 
-void Enemy::takeDamage() {
-    health--;
+void Enemy::takeDamage(int damage) {
+    health -= damage;
     if (health <= 0) {
+        alive = false;
         std::cout << "Enemy defeated!" << std::endl;
     }
 }
 
 bool Enemy::isAlive() const {
-    return health > 0;
+    return alive;
 }
 
 sf::FloatRect Enemy::getBounds() const {
     sf::FloatRect spriteBounds = enemySprite.getGlobalBounds();
 
-    float marginX = spriteBounds.width * 0.2f;
-    float marginY = spriteBounds.height * 0.2f;
+    float hitboxWidthFactor = 0.6f;
+    float hitboxHeightFactor = 0.8f;
+    float hitboxOffsetX = (1.f - hitboxWidthFactor) / 2.f;
+    float hitboxOffsetY = (1.f - hitboxHeightFactor) / 2.f;
 
     return sf::FloatRect(
-        spriteBounds.left + marginX / 2.f,
-        spriteBounds.top + marginY / 2.f,
-        spriteBounds.width - marginX,
-        spriteBounds.height - marginY
+        spriteBounds.left + spriteBounds.width * hitboxOffsetX,
+        spriteBounds.top + spriteBounds.height * hitboxOffsetY,
+        spriteBounds.width * hitboxWidthFactor,
+        spriteBounds.height * hitboxHeightFactor
     );
 }
 
@@ -207,6 +210,13 @@ void Enemy::setupForRanged() {
     const int FRAME_HEIGHT = 80;
     walkFrameCount = 3;
     setWalkFrameRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+    bulletTexturePath = "assets/enemyBullet.png";
+
+    hitboxWidthFactor = 0.1f;
+    hitboxHeightFactor = 0.1f;
+    hitboxOffsetX = (1.0f - hitboxWidthFactor) / 2.0f;
+    hitboxOffsetY = (1.0f - hitboxHeightFactor) / 2.0f;
+
 }
 
 void Enemy::setupForMelee() {
@@ -215,4 +225,11 @@ void Enemy::setupForMelee() {
     const int FRAME_HEIGHT = 90;
     walkFrameCount = 4;
     setWalkFrameRect(0, 0, FRAME_WIDTH, FRAME_HEIGHT);
+
+    hitboxWidthFactor = 0.2f;
+    hitboxHeightFactor = 0.9f;
+    hitboxOffsetX = (1.0f - hitboxWidthFactor) / 2.0f;
+    hitboxOffsetY = (1.0f - hitboxHeightFactor) / 2.0f;
 }
+
+
