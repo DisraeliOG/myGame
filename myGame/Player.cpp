@@ -1,41 +1,38 @@
 #include "Player.h"
 #include "Enemy.h"
-#include <algorithm>
 #include <cmath>
 #include <iostream>
-#include "Upgrade.h"
+#include <algorithm>
 
 Player::Player() {
-    if (!playerTexture.loadFromFile("assets\\MCSpriteSheet.png")) {
-        std::cout << "Error loading player texture" << std::endl;
-    }
+    if (!playerTexture.loadFromFile("assets/MCSpriteSheet.png"))
+        std::cerr << "Error loading player texture\n";
     playerSprite.setTexture(playerTexture);
     playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
-    sf::FloatRect bounds = playerSprite.getLocalBounds();
     playerSprite.setOrigin(frameSize.x / 2.f, frameSize.y / 2.f);
-    playerSprite.setPosition({400, 300});
+    playerSprite.setPosition(400, 300);
     playerSprite.setScale(2.f, 2.f);
 
-    speed = 200.f;
-
-    if (!shootBuffer.loadFromFile("sounds\\shoot.wav")) {
-        std::cout << "Error loading shoot sound" << std::endl;
-    } else {
+    if (!shootBuffer.loadFromFile("sounds/shoot.wav"))
+        std::cerr << "Error loading shoot sound\n";
+    else
         shootSound.setBuffer(shootBuffer);
+
+    if (hasShield) {
+        shieldHP = maxShieldHP;
+        shieldRegenClock.restart();
     }
 }
 
-void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
+void Player::update(std::vector<std::unique_ptr<Enemy>>& enemies, float deltaTime) {
     sf::Vector2f movement(0.f, 0.f);
-
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) movement.y -= 1.f;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) movement.y += 1.f;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) movement.x -= 1.f;
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) movement.x += 1.f;
 
-    if (movement != sf::Vector2f(0.f, 0.f)) {
+    if (movement != sf::Vector2f(0.f, 0.f))
         movement /= std::sqrt(movement.x * movement.x + movement.y * movement.y);
-    }
 
     playerSprite.move(movement * speed * deltaTime);
 
@@ -44,74 +41,27 @@ void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
         if (animationTimer >= frameDuration) {
             animationTimer = 0.f;
             currentFrame = (currentFrame + 1) % frameCount;
-            playerSprite.setTextureRect(sf::IntRect(
-                    currentFrame * frameSize.x,
-                    0, // строка анимации (0 - ходьба, 1 - атака и т.д.)
-                    frameSize.x,
-                    frameSize.y
-            ));
+            playerSprite.setTextureRect(sf::IntRect(currentFrame * frameSize.x, 0, frameSize.x, frameSize.y));
         }
-
-        if (movement.x < 0) {
-            playerSprite.setScale(-2.f, 2.f); // влево
-        } else if (movement.x > 0) {
-            playerSprite.setScale(2.f, 2.f); // вправо
-        }
+        playerSprite.setScale(movement.x < 0 ? -2.f : 2.f, 2.f);
     } else {
         currentFrame = 0;
         playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
     }
 
+    shootAtClosestEnemy(enemies);
 
-    Enemy* closestEnemy = nullptr;
-    float closestDistanceSq = std::numeric_limits<float>::max();
-    sf::Vector2f playerPos = playerSprite.getPosition();
-    float shootRange = 500.f;
-
-    for (auto& e : enemies) {
-        if (!e.isAlive()) continue;
-
-        float dx = e.getPosition().x - playerPos.x;
-        float dy = e.getPosition().y - playerPos.y;
-        float distSq = dx * dx + dy * dy;
-
-        if (distSq < closestDistanceSq) {
-            closestDistanceSq = distSq;
-            closestEnemy = &e;
-        }
-    }
-
-    if (closestEnemy && shootClock.getElapsedTime().asSeconds() >= shootDelay) {
-        sf::Vector2f playerPos = playerSprite.getPosition();
-
-        sf::FloatRect enemyBounds = closestEnemy->getBounds();
-        sf::Vector2f enemyCenter(enemyBounds.left + enemyBounds.width / 2.f, enemyBounds.top + enemyBounds.height / 2.f);
-
-        float dx = enemyCenter.x - playerPos.x;
-        float dy = enemyCenter.y - playerPos.y;
-        float distance = std::sqrt(dx * dx + dy * dy);
-
-        if (distance <= shootRange) {
-            sf::Vector2f direction = { dx / distance, dy / distance };
-            sf::Vector2f bulletStartPos = playerPos + direction * 30.f;
-
-            bullets.emplace_back(bulletStartPos, enemyCenter);
-            shootSound.play();
-            shootClock.restart();
-        }
-    }
+    for (auto& bullet : bullets)
+        bullet.update();
 
     for (auto& bullet : bullets) {
-        bullet.update();
+        if (!bullet.isActive) continue;
         for (auto& enemy : enemies) {
-            if (enemy.isAlive() && bullet.isActive && bullet.getBounds().intersects(enemy.getBounds())) {
+            if (enemy->isAlive() && bullet.getBounds().intersects(enemy->getBounds())) {
                 bullet.isActive = false;
-                enemy.takeDamage();
-
-                if (!enemy.isAlive() && vampirismHeal > 0) {
+                enemy->takeDamage(bullet.damage);
+                if (!enemy->isAlive() && vampirismHeal > 0)
                     health = std::min(maxHealth, health + vampirismHeal);
-                }
-
                 break;
             }
         }
@@ -121,41 +71,127 @@ void Player::update(std::vector<Enemy>& enemies, float deltaTime) {
                                  [](const Bullet& b) { return !b.isActive; }),
                   bullets.end());
 
+    updateShield(deltaTime);
+
     if (hpRegen > 0.f && hpRegenClock.getElapsedTime().asSeconds() >= 1.f) {
         health = std::min(maxHealth, health + static_cast<int>(hpRegen));
         hpRegenClock.restart();
     }
-
 }
 
-void Player::draw(sf::RenderWindow &window) {
+void Player::draw(sf::RenderWindow& window) {
     window.draw(playerSprite);
+    if (hasShield && shieldHP > 0)
+        window.draw(getShieldVisual());
+
+    // Отладочный хитбокс игрока
+    sf::FloatRect bounds = getGlobalBounds();
+    sf::RectangleShape hitbox(sf::Vector2f(bounds.width, bounds.height));
+    hitbox.setPosition(bounds.left, bounds.top);
+    hitbox.setFillColor(sf::Color::Transparent);
+    hitbox.setOutlineColor(sf::Color::Blue);
+    hitbox.setOutlineThickness(1.f);
+    window.draw(hitbox);
+}
+
+void Player::shootAtClosestEnemy(std::vector<std::unique_ptr<Enemy>>& enemies) {
+    Enemy* closestEnemyPtr = nullptr;
+    float minDistanceSq = std::numeric_limits<float>::max();
+    sf::Vector2f playerPos = getPosition();
+
+    for (auto& enemyPtr : enemies) {
+        if (enemyPtr && enemyPtr->isAlive()) {
+            sf::Vector2f enemyPos = enemyPtr->getPosition();
+            float distanceSq = (enemyPos.x - playerPos.x) * (enemyPos.x - playerPos.x) +
+                               (enemyPos.y - playerPos.y) * (enemyPos.y - playerPos.y);
+
+            if (distanceSq < minDistanceSq) {
+                minDistanceSq = distanceSq;
+                closestEnemyPtr = enemyPtr.get();
+            }
+        }
+    }
+
+    if (closestEnemyPtr && std::sqrt(minDistanceSq) <= 500.f) {
+        if (shootClock.getElapsedTime().asSeconds() >= shootDelay) {
+            sf::FloatRect bounds = closestEnemyPtr->getBounds();
+            float targetX = bounds.left + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX) / bounds.width);
+            float targetY = bounds.top + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX) / bounds.height);
+            sf::Vector2f target(targetX, targetY);
+            sf::Vector2f dir = target - playerPos;
+            float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+
+            if (len != 0) {
+                dir /= len;
+            } else {
+                dir = sf::Vector2f(1.f, 0.f);
+            }
+
+            sf::Vector2f spawnPos = playerPos + dir * 30.f;
+
+            bullets.emplace_back(spawnPos, target, 0.5f, 10, 10000.f, "assets/bullet.gif");
+            shootSound.play();
+            shootClock.restart();
+        }
+    }
 }
 
 void Player::takeDamage(int damage) {
-    health -= damage;
+    if (hasShield && shieldHP > 0) {
+        shieldHP -= damage;
+        if (shieldHP < 0) {
+            int leftover = -shieldHP;
+            shieldHP = 0;
+            health -= leftover;
+        }
+    } else {
+        health -= damage;
+    }
+
     if (health <= 0) {
         health = 0;
         dead = true;
     }
-    std::cout << "Player took damage! Current health: " << health << std::endl;
 }
 
-sf::Vector2f Player::getPosition() const {
-    return playerSprite.getPosition();
+void Player::reset() {
+    playerSprite.setPosition(400, 300);
+    health = maxHealth = 100;
+    experience = 0;
+    level = 1;
+    expToNextLevel = 100;
+    speed = 200.f;
+    dead = false;
+    bullets.clear();
+    shootClock.restart();
+
+    if (hasShield) {
+        shieldHP = maxShieldHP;
+        shieldRegenClock.restart();
+    }
 }
+
+sf::Vector2f Player::getPosition() const { return playerSprite.getPosition(); }
 
 sf::FloatRect Player::getGlobalBounds() const {
-    return playerSprite.getGlobalBounds();
+    sf::FloatRect spriteBounds = playerSprite.getGlobalBounds();
+
+    float actualHitboxWidth = spriteBounds.width * hitboxWidthFactor;
+    float actualHitboxHeight = spriteBounds.height * hitboxHeightFactor;
+
+    float offsetX = spriteBounds.width * hitboxOffsetX;
+    float offsetY = spriteBounds.height * hitboxOffsetY;
+
+    return sf::FloatRect(
+        spriteBounds.left + offsetX,
+        spriteBounds.top + offsetY,
+        actualHitboxWidth,
+        actualHitboxHeight
+    );
 }
 
-const std::vector<Bullet>& Player::getBullets() const {
-    return bullets;
-}
-
-std::vector<Bullet>& Player::getBullets() {
-    return bullets;
-}
+const std::vector<Bullet>& Player::getBullets() const { return bullets; }
+std::vector<Bullet>& Player::getBullets() { return bullets; }
 
 void Player::addExperience(int amount) {
     amount = static_cast<int>(amount * xpGainMultiplier);
@@ -165,44 +201,7 @@ void Player::addExperience(int amount) {
         level++;
         expToNextLevel = static_cast<int>(expToNextLevel * 1.5f);
         justLeveledUp = true;
-        std::cout << "Level up! Now level " << level << std::endl;
     }
-}
-
-void Player::reset() {
-    if (!playerTexture.loadFromFile("assets/MCSpriteSheet.png")) {
-        std::cout << "Error loading player texture" << std::endl;
-    }
-
-    playerSprite.setTexture(playerTexture);
-
-    playerSprite.setTextureRect(sf::IntRect(0, 0, frameSize.x, frameSize.y));
-
-    playerSprite.setOrigin(frameSize.x / 2.f, frameSize.y / 2.f);
-    playerSprite.setPosition(400, 300);
-    playerSprite.setScale(2.f, 2.f);
-
-    health = maxHealth = 100;
-    experience = 0;
-    level = 1;
-    expToNextLevel = 100;
-    speed = 200.f;
-    dead = false;
-    bullets.clear();
-    shootClock.restart();
-}
-
-void Player::increaseMaxHealth(float factor) {
-    maxHealth = static_cast<int>(maxHealth * factor);
-    health = std::min(health, maxHealth);
-}
-
-void Player::decreaseShootDelay(float factor) {
-    shootDelay *= factor;
-}
-
-void Player::increaseSpeed(float factor) {
-    speed *= factor;
 }
 
 bool Player::hasJustLeveledUp() {
@@ -211,14 +210,50 @@ bool Player::hasJustLeveledUp() {
     return temp;
 }
 
-void Player::enableHpRegen(float amount) {
-    hpRegen += amount;
+// --- Улучшения
+void Player::increaseMaxHealth(float factor) {
+    maxHealth = static_cast<int>(maxHealth * factor);
+    health = std::min(health, maxHealth);
 }
 
-void Player::enableVampirism(int heal) {
-    vampirismHeal += heal;
+void Player::decreaseShootDelay(float factor) { shootDelay *= factor; }
+void Player::increaseSpeed(float factor) { speed *= factor; }
+void Player::enableHpRegen(float amount) { hpRegen += amount; }
+void Player::enableVampirism(int heal) { vampirismHeal += heal; }
+void Player::increaseXPGainMultiplier(float factor) { xpGainMultiplier *= factor; }
+
+// --- Щит
+void Player::enableShield() {
+    hasShield = true;
+    shieldHP = maxShieldHP;
+    shieldRegenClock.restart();
 }
 
-void Player::increaseXPGainMultiplier(float factor) {
-    xpGainMultiplier *= factor;
+void Player::updateShield(float dt) {
+    if (hasShield && shieldHP < maxShieldHP) {
+        float secondsPassed = shieldRegenClock.getElapsedTime().asSeconds();
+        if (secondsPassed >= 1.f / shieldRegenRate) {
+            int amountToRegen = static_cast<int>(secondsPassed * shieldRegenRate);
+            shieldHP = std::min(maxShieldHP, shieldHP + amountToRegen);
+            shieldRegenClock.restart();
+        }
+    }
 }
+
+float Player::getShieldRatio() const {
+    if (!hasShield) return 0.f;
+    return static_cast<float>(shieldHP) / maxShieldHP;
+}
+
+sf::CircleShape Player::getShieldVisual() const {
+    sf::CircleShape shieldCircle(40.f * getShieldRatio());
+    shieldCircle.setOrigin(shieldCircle.getRadius(), shieldCircle.getRadius());
+    shieldCircle.setPosition(playerSprite.getPosition());
+    sf::Uint8 alpha = static_cast<sf::Uint8>(150 * getShieldRatio());
+    shieldCircle.setFillColor(sf::Color(0, 200, 255, alpha));
+    shieldCircle.setOutlineThickness(2.f);
+    shieldCircle.setOutlineColor(sf::Color(0, 200, 255, 180));
+    return shieldCircle;
+}
+
+
