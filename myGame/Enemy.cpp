@@ -7,6 +7,7 @@
 
 sf::Texture Enemy::ghostTexture;
 sf::Texture Enemy::chechikTexture;
+sf::Texture Enemy::bossTexture;
 
 void Enemy::loadTextures() {
     if (ghostTexture.getSize().x == 0) {
@@ -24,7 +25,19 @@ void Enemy::loadTextures() {
             std::cout << "Chechik texture loaded OK" << std::endl;
         }
     }
+
+    if (bossTexture.getSize().x == 0) {
+        if (!bossTexture.loadFromFile("assets\\boss.png")) {
+            std::cerr << "Error: cannot load boss.png from assets" << std::endl;
+        } else {
+            std::cout << "Boss texture loaded OK" << std::endl;
+        }
+    }
+
 }
+
+
+
 
 Enemy::Enemy() : health(5), alive(true) {
     loadTextures();
@@ -85,12 +98,19 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition, Player& 
     }
 
     sf::Vector2f position = enemySprite.getPosition();
+    float originX = enemySprite.getOrigin().x;
+    float width = enemySprite.getLocalBounds().width * enemySprite.getScale().x;
 
     if (directionToPlayer.x > 0.1f && !facingRight) {
         enemySprite.setScale(2.15f, 2.15f);
+        enemySprite.setOrigin(0.f, 0.f);
+        enemySprite.setPosition(position);
         facingRight = true;
     } else if (directionToPlayer.x < -0.1f && facingRight) {
+        // Повернуть влево (зеркальное отражение)
         enemySprite.setScale(-2.15f, 2.15f);
+        enemySprite.setOrigin(enemySprite.getLocalBounds().width, 0.f);
+        enemySprite.setPosition(position);
         facingRight = false;
     }
 
@@ -105,7 +125,7 @@ void Enemy::update(float deltaTime, const sf::Vector2f& playerPosition, Player& 
             float enemyBulletScale = 0.3f;
             int enemyBulletDamage = 1;
 
-            bullets.emplace_back(bulletStartPos, playerPosition, 2.5, enemyBulletDamage, 600, bulletTexturePath);
+            bullets.emplace_back(bulletStartPos, playerPosition, 0.5, enemyBulletDamage, 600, bulletTexturePath);
 
             attackCooldown.restart();
         }
@@ -145,10 +165,6 @@ void Enemy::draw(sf::RenderWindow& window) const {
     sf::FloatRect bounds = getBounds();
     sf::RectangleShape hitbox(sf::Vector2f(bounds.width, bounds.height));
     hitbox.setPosition(bounds.left, bounds.top);
-    hitbox.setFillColor(sf::Color::Transparent);
-    hitbox.setOutlineColor(sf::Color::Red);
-    hitbox.setOutlineThickness(1.f);
-    window.draw(hitbox);
 
     for (const auto& bullet : bullets) {
         bullet.draw(window);
