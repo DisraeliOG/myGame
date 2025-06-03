@@ -4,12 +4,14 @@
 #include <iostream>
 #include <SFML/Audio.hpp>
 
+const int WALK_FRAME_COUNT = 4;
+const float FRAME_DURATION = 0.3f;
 
 Boss::Boss() {
     loadTextures();
     type = EnemyType::Ranged;
-    enemySprite.setTexture(ghostTexture);
-    enemySprite.setScale(10.0f, 10.0f);
+    enemySprite.setTexture(bossTexture);
+    enemySprite.setScale(4.0f, 4.0f);
     enemySprite.setOrigin(enemySprite.getLocalBounds().width / 2.f, enemySprite.getLocalBounds().height / 2.f);
     health = 500;
     attackRange = 800.f;
@@ -18,9 +20,11 @@ Boss::Boss() {
     setupForRanged();
     randomizeDirection();
     alive = true;
+
+    currentFrame = 0;
+    animationClock.restart();
 }
 
-// D:/myGame/Boss.cpp
 void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& player, std::vector<std::unique_ptr<Enemy>>& enemies) {
     if (!isAlive()) return;
 
@@ -29,6 +33,8 @@ void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& p
     if (len != 0) directionToPlayer /= len;
 
     enemySprite.move(directionToPlayer * speed * deltaTime);
+
+    updateWalkAnimation(deltaTime);
 
     if (attackCooldown.getElapsedTime().asSeconds() >= 1.2f) {
         sf::FloatRect hb = getBounds();
@@ -57,25 +63,26 @@ void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& p
     for (auto& b : bullets) b.update();
 
     bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-        [&](Bullet& b) {
-            if (b.getBounds().intersects(player.getGlobalBounds())) {
-                player.takeDamage(b.damage);
-                return true;
-            }
-            return !b.isActive;
-        }), bullets.end());
+                                 [&](Bullet& b) {
+                                     if (b.getBounds().intersects(player.getGlobalBounds())) {
+                                         player.takeDamage(b.damage);
+                                         return true;
+                                     }
+                                     return !b.isActive;
+                                 }), bullets.end());
 
-    updateWalkAnimation(deltaTime);
+    sf::Vector2f position = enemySprite.getPosition();
+    float originX = enemySprite.getOrigin().x;
+    float width = enemySprite.getLocalBounds().width * enemySprite.getScale().x;
 
     if (directionToPlayer.x > 0.1f && !facingRight) {
-        enemySprite.setScale(10.0f, 10.0f);
+        enemySprite.setScale(4.0f, 4.0f); // Положительный масштаб для взгляда вправо
         facingRight = true;
     } else if (directionToPlayer.x < -0.1f && facingRight) {
-        enemySprite.setScale(-10.0f, 10.0f);
+        enemySprite.setScale(-4.0f, 4.0f); // Отрицательный масштаб для взгляда влево
         facingRight = false;
     }
 }
-
 
 void Boss::specialAttack(float deltaTime, const sf::Vector2f& playerPosition, Player& player) {
     if (specialAttackCooldown.getElapsedTime().asSeconds() >= specialAttackDelay) {
@@ -93,7 +100,6 @@ void Boss::specialAttack(float deltaTime, const sf::Vector2f& playerPosition, Pl
         specialAttackCooldown.restart();
     }
 }
-
 
 void Boss::takeDamage(int damage) {
     health -= damage;
@@ -114,4 +120,23 @@ sf::FloatRect Boss::getBounds() const {
                          currentBounds.top + yOffset,
                          currentBounds.width * reductionFactor,
                          currentBounds.height * reductionFactor);
+}
+
+void Boss::updateWalkAnimation(float deltaTime) {
+    if (animationClock.getElapsedTime().asSeconds() >= FRAME_DURATION) {
+        currentFrame = (currentFrame + 1) % WALK_FRAME_COUNT;
+        setWalkFrameRect(currentFrame, 0);
+        animationClock.restart();
+    }
+}
+
+void Boss::setWalkFrameRect(int col, int row) {
+    const int FRAME_WIDTH = 128;
+    const int FRAME_HEIGHT = 128;
+
+    walkFrameRect.left = col * FRAME_WIDTH;
+    walkFrameRect.top = row * FRAME_HEIGHT;
+    walkFrameRect.width = FRAME_WIDTH;
+    walkFrameRect.height = FRAME_HEIGHT;
+    enemySprite.setTextureRect(walkFrameRect);
 }
