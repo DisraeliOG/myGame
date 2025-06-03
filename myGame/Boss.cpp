@@ -2,7 +2,8 @@
 #include "Player.h"
 #include <cmath>
 #include <iostream>
-#include <SFML/Audio.hpp>
+#include <algorithm>
+#include "Bullet.h"
 
 const int WALK_FRAME_COUNT = 4;
 const float FRAME_DURATION = 0.3f;
@@ -12,7 +13,11 @@ Boss::Boss() {
     type = EnemyType::Ranged;
     enemySprite.setTexture(bossTexture);
     enemySprite.setScale(4.0f, 4.0f);
-    enemySprite.setOrigin(enemySprite.getLocalBounds().width / 2.f, enemySprite.getLocalBounds().height / 2.f);
+
+    const int FRAME_WIDTH = 128;
+    const int FRAME_HEIGHT = 128;
+    enemySprite.setOrigin(FRAME_WIDTH / 2.f, FRAME_HEIGHT / 2.f);
+
     health = 500;
     attackRange = 800.f;
     speed = 80.f;
@@ -23,6 +28,8 @@ Boss::Boss() {
 
     currentFrame = 0;
     animationClock.restart();
+
+    facingRight = true;
 }
 
 void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& player, std::vector<std::unique_ptr<Enemy>>& enemies) {
@@ -56,7 +63,6 @@ void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& p
                              std::sin(std::atan2(baseDir.y, baseDir.x) + angleOffset));
             bullets.emplace_back(center, center + dir * 5000.f, 0.5f, 2, 10000.f, bulletTexturePath);
         }
-
         waveAttackCooldown.restart();
     }
 
@@ -71,15 +77,16 @@ void Boss::update(float deltaTime, const sf::Vector2f& playerPosition, Player& p
                                      return !b.isActive;
                                  }), bullets.end());
 
-    sf::Vector2f position = enemySprite.getPosition();
-    float originX = enemySprite.getOrigin().x;
-    float width = enemySprite.getLocalBounds().width * enemySprite.getScale().x;
+    const int FRAME_WIDTH = 128;
+    const int FRAME_HEIGHT = 128;
 
     if (directionToPlayer.x > 0.1f && !facingRight) {
-        enemySprite.setScale(4.0f, 4.0f); // Положительный масштаб для взгляда вправо
+        enemySprite.setScale(4.0f, 4.0f);
+        enemySprite.setOrigin(FRAME_WIDTH / 2.f, FRAME_HEIGHT / 2.f);
         facingRight = true;
     } else if (directionToPlayer.x < -0.1f && facingRight) {
-        enemySprite.setScale(-4.0f, 4.0f); // Отрицательный масштаб для взгляда влево
+        enemySprite.setScale(-4.0f, 4.0f);
+        enemySprite.setOrigin(FRAME_WIDTH / 2.f, FRAME_HEIGHT / 2.f);
         facingRight = false;
     }
 }
@@ -93,10 +100,8 @@ void Boss::specialAttack(float deltaTime, const sf::Vector2f& playerPosition, Pl
         for (int i = 0; i < numBullets; ++i) {
             float angle = i * 2 * 3.14159f / numBullets;
             sf::Vector2f dir(std::cos(angle), std::sin(angle));
-            // Пули спец. атаки: очень большая дальность
             bullets.emplace_back(center, center + dir * 5000.f, 0.5f, 3, 10000.f, bulletTexturePath);
         }
-
         specialAttackCooldown.restart();
     }
 }
