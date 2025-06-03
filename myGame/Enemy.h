@@ -22,6 +22,7 @@ class Enemy {
 protected:
     static sf::Texture ghostTexture;
     static sf::Texture chechikTexture;
+    static sf::Texture bossTexture;
     sf::Sprite enemySprite;
     float speed = 100.0f;
     sf::Vector2f direction;
