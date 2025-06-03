@@ -29,6 +29,8 @@ add_executable(myGame
         Upgrade.h
         UpgradeManager.cpp
         UpgradeManager.h
+        Boss.cpp
+        Boss.h
 )
 
 target_link_libraries(myGame
